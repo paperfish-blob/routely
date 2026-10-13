@@ -1,0 +1,76 @@
+/* Global base: font loading, reset, typography, focus ring, utilities. No raw colours/sizes here. */
+
+@font-face {
+	font-family: 'Plus Jakarta Sans';
+	font-style: normal;
+	font-weight: 400 800;
+	font-display: swap;
+	src: url('/fonts/PlusJakartaSans-latin.woff2') format('woff2');
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	height: 100%;
+	margin: 0;
+}
+
+body {
+	font-family: var(--font-sans);
+	font-size: var(--fs-body);
+	line-height: var(--lh-base);
+	color: var(--ink);
+	background: var(--surface);
+	-webkit-font-smoothing: antialiased;
+}
+
+button,
+input {
+	font: inherit;
+	color: inherit;
+}
+
+button {
+	cursor: pointer;
+}
+
+:focus-visible {
+	outline: 3px solid var(--focus);
+	outline-offset: 2px;
+}
+
+/* Tabular numerals for every distance, duration and count. */
+.num {
+	font-variant-numeric: tabular-nums;
+	font-feature-settings: 'tnum';
+}
+
+/* Visually hidden, still announced. */
+.sr {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+}
+
+.ico {
+	width: 20px;
+	height: 20px;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.8;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	flex: none;
+}
+.ico.sm {
+	width: 16px;
+	height: 16px;
+}

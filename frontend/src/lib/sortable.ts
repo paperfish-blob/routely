@@ -1,8 +1,11 @@
 import Sortable from 'sortablejs';
 
 interface Options {
+	/** CSS selector of the draggable items (siblings may include non-draggable ones, e.g. leg connectors). */
+	item: string;
 	/** CSS selector of the drag handle inside each item. */
 	handle: string;
+	/** Called with indices counted among draggable items only. */
 	onMove: (from: number, to: number) => void;
 }
 
@@ -18,16 +21,21 @@ export function sortable(node: HTMLElement, options: Options) {
 	let originalNext: Node | null = null;
 	const instance = Sortable.create(node, {
 		animation: 150,
+		draggable: options.item,
 		handle: options.handle,
+		// Pointer-driven drag with a styled clone: same look on desktop and touch.
+		forceFallback: true,
+		fallbackOnBody: true,
+		fallbackClass: 'drag',
 		ghostClass: 'drag-ghost',
-		chosenClass: 'drag-chosen',
 		onStart({ item }) {
 			originalNext = item.nextSibling;
 		},
-		onEnd({ oldIndex, newIndex, item, from }) {
-			if (oldIndex == null || newIndex == null || oldIndex === newIndex) return;
+		onEnd({ oldDraggableIndex, newDraggableIndex, item, from }) {
+			if (oldDraggableIndex == null || newDraggableIndex == null) return;
+			if (oldDraggableIndex === newDraggableIndex) return;
 			from.insertBefore(item, originalNext);
-			current.onMove(oldIndex, newIndex);
+			current.onMove(oldDraggableIndex, newDraggableIndex);
 		}
 	});
 	return {

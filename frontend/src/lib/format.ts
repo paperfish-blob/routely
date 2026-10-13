@@ -1,9 +1,14 @@
 import type { GeocodeCandidate, Stop } from './types';
 
+/** One decimal everywhere (design: "13.6 km", "237.7"); metres below 1 km. */
 export function formatKm(km: number): string {
 	if (km < 1) return `${Math.round(km * 1000)} m`;
-	if (km < 100) return `${km.toFixed(1)} km`;
-	return `${Math.round(km).toLocaleString('en-US')} km`;
+	return `${formatKmValue(km)} km`;
+}
+
+/** The number part only, for stat tiles that render the unit separately. */
+export function formatKmValue(km: number): string {
+	return km.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
 
 export function formatDuration(seconds: number): string {
@@ -41,6 +46,24 @@ export function moveItem<T>(items: T[], from: number, to: number): T[] {
 	const [moved] = next.splice(from, 1);
 	next.splice(to, 0, moved);
 	return next;
+}
+
+/** Splits a duration into the big number and its small unit: 12720 s -> { main: '3 h 32', unit: 'min' }. */
+export function durationParts(seconds: number): { main: string; unit: string } {
+	const total = Math.max(1, Math.round(seconds / 60));
+	const h = Math.floor(total / 60);
+	const m = total % 60;
+	return h === 0 ? { main: String(m), unit: 'min' } : { main: `${h} h ${String(m).padStart(2, '0')}`.replace(/ 00$/, ''), unit: m === 0 ? '' : 'min' };
+}
+
+/** "Gombak, Selangor" from a geocoder label: the two parts after the name, skipping numbers. */
+export function placeSubtitle(address: string | undefined, name: string): string {
+	if (!address) return '';
+	const parts = address
+		.split(',')
+		.map((p) => p.trim())
+		.filter((p) => p && p !== name && !/^[\d\s-]+$/.test(p));
+	return parts.slice(0, 2).join(', ');
 }
 
 const FALLBACK_REASONS: Record<string, string> = {

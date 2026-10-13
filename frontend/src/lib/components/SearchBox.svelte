@@ -1,24 +1,40 @@
 <script lang="ts">
 	import { api, ApiError } from '#lib/api.ts';
+	import { placeSubtitle } from '#lib/format.ts';
 	import type { GeocodeCandidate } from '#lib/types.ts';
+	import { Banner, Button, Field, Icon, IconButton, Skeleton } from '#lib/ui/index.ts';
 
 	interface Props {
 		onselect: (candidate: GeocodeCandidate) => void;
-		onfocus?: () => void;
+		/** 'side' is the desktop sidebar field; 'float' is the mobile floating bar. */
+		variant?: 'side' | 'float';
 		disabled?: boolean;
 		placeholder?: string;
+		onfocus?: () => void;
+		/** Focus the input when mounted (empty state). */
+		autofocus?: boolean;
 	}
 
-	let { onselect, onfocus, disabled = false, placeholder = 'Search for a place…' }: Props = $props();
+	let {
+		onselect,
+		variant = 'side',
+		disabled = false,
+		placeholder = variant === 'float' ? 'Search places to add' : 'Search a city, landmark or address',
+		onfocus,
+		autofocus = false
+	}: Props = $props();
 
 	const MIN_CHARS = 3;
 	const DEBOUNCE_MS = 400;
+	const NO_RESULTS = 'No places found. Try a different name.';
 
 	let query = $state('');
+	let inputEl = $state<HTMLInputElement>();
 	let results = $state<GeocodeCandidate[]>([]);
 	let loading = $state(false);
-	let error = $state<string | null>(null);
 	let searched = $state(false);
+	let rateLimited = $state(false);
+	let failure = $state<string | null>(null);
 	let open = $state(false);
 	let active = $state(0);
 
@@ -27,12 +43,14 @@
 		if (q.length < MIN_CHARS) {
 			results = [];
 			loading = false;
-			error = null;
 			searched = false;
+			failure = null;
+			rateLimited = false;
 			return;
 		}
 		loading = true;
-		error = null;
+		failure = null;
+		rateLimited = false;
 		const controller = new AbortController();
 		const timer = setTimeout(async () => {
 			try {
@@ -43,8 +61,9 @@
 			} catch (err) {
 				if (controller.signal.aborted) return;
 				results = [];
-				error = err instanceof ApiError ? err.message : 'Search failed';
-				open = true;
+				searched = false;
+				if (err instanceof ApiError && err.code === 'rate_limited') rateLimited = true;
+				else failure = err instanceof ApiError ? err.message : 'Search failed';
 			} finally {
 				if (!controller.signal.aborted) loading = false;
 			}
@@ -55,6 +74,22 @@
 		};
 	});
 
+	$effect(() => {
+		if (autofocus) inputEl?.focus();
+	});
+
+	const noResults = $derived(searched && !loading && results.length === 0);
+	const showList = $derived(open && !disabled && query.trim().length >= MIN_CHARS && (loading || results.length > 0));
+	const help = $derived(
+		disabled
+			? 'Stop limit reached. Remove a stop to add another.'
+			: noResults
+				? NO_RESULTS
+				: failure
+					? failure
+					: undefined
+	);
+
 	function choose(candidate: GeocodeCandidate) {
 		onselect(candidate);
 		query = '';
@@ -62,36 +97,75 @@
 	}
 
 	function onkeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape') {
-			open = false;
-		} else if (e.key === 'ArrowDown' && results.length) {
+		if (e.key === 'Escape') open = false;
+		else if (e.key === 'ArrowDown' && results.length) {
 			e.preventDefault();
 			open = true;
 			active = (active + 1) % results.length;
 		} else if (e.key === 'ArrowUp' && results.length) {
 			e.preventDefault();
 			active = (active - 1 + results.length) % results.length;
-		} else if (e.key === 'Enter' && open && results[active]) {
+		} else if (e.key === 'Enter' && showList && results[active]) {
 			e.preventDefault();
 			choose(results[active]);
 		}
 	}
 
-	const showPanel = $derived(open && query.trim().length >= MIN_CHARS && !loading);
+	/** Splits a title into [before, match, after] around the first case-insensitive query hit. */
+	function split(title: string): [string, string, string] {
+		const q = query.trim();
+		const i = q ? title.toLowerCase().indexOf(q.toLowerCase()) : -1;
+		return i < 0 ? [title, '', ''] : [title.slice(0, i), title.slice(i, i + q.length), title.slice(i + q.length)];
+	}
+	const titleOf = (c: GeocodeCandidate) => c.display_name.split(',')[0]?.trim() || c.display_name;
 </script>
 
-<div class="search">
-	<div class="field">
-		<input
+<div class="search" data-name="SearchBox">
+	{#if variant === 'float'}
+		<div class="m-search" data-name="FloatingSearch">
+			<Icon name="search" />
+			<label class="sr" for="m-search-input">Search for a place to add</label>
+			<input
+				id="m-search-input"
+				type="search"
+				autocomplete="off"
+				{placeholder}
+				{disabled}
+				bind:value={query}
+				bind:this={inputEl}
+				onfocus={() => {
+					open = true;
+					onfocus?.();
+				}}
+				onblur={() => (open = false)}
+				{onkeydown}
+				role="combobox"
+				aria-expanded={showList}
+				aria-controls="search-results"
+				aria-autocomplete="list"
+			/>
+			{#if query}
+				<IconButton label="Clear search" icon="close" onclick={() => { query = ''; inputEl?.focus(); }} />
+			{/if}
+		</div>
+		{#if help}
+			<div class="map-banner"><Banner variant={noResults ? 'warn' : 'err'}>{help}</Banner></div>
+		{/if}
+	{:else}
+		<Field
+			label="Search for a place"
 			type="search"
-			role="combobox"
-			aria-expanded={showPanel}
-			aria-controls="search-results"
-			aria-autocomplete="list"
 			autocomplete="off"
 			{placeholder}
 			{disabled}
 			bind:value={query}
+			bind:inputEl
+			error={noResults || failure !== null}
+			help={help}
+			role="combobox"
+			aria-expanded={showList}
+			aria-controls="search-results"
+			aria-autocomplete="list"
 			onfocus={() => {
 				open = true;
 				onfocus?.();
@@ -99,128 +173,52 @@
 			onblur={() => (open = false)}
 			{onkeydown}
 		/>
-		{#if loading}<span class="spinner" role="status" aria-label="Searching"></span>{/if}
-	</div>
-
-	{#if disabled}
-		<p class="hint">Stop limit reached. Remove a stop to add another.</p>
 	{/if}
 
-	{#if showPanel}
-		<ul id="search-results" class="results" role="listbox">
-			{#if error}
-				<li class="state error" role="alert">{error}</li>
-			{:else if searched && results.length === 0}
-				<li class="state">No places found for “{query.trim()}”.</li>
+	{#if rateLimited}
+		<div style="margin-top: var(--sp-10)">
+			<Banner variant="warn" icon="clock">Too many searches, try again in a moment.</Banner>
+		</div>
+	{/if}
+
+	{#if showList}
+		<div class="dd" id="search-results" role="listbox" aria-label="Place suggestions">
+			{#if loading}
+				<div role="status" aria-label="Searching" style="display: flex; flex-direction: column; gap: var(--sp-10); padding: var(--sp-8)">
+					{#each [0, 1, 2] as n (n)}
+						<div style="display: flex; align-items: center; gap: var(--sp-12)">
+							<Skeleton width="32px" height="32px" radius="var(--r-lg)" />
+							<div style="flex: 1; display: flex; flex-direction: column; gap: var(--sp-6)">
+								<Skeleton width="{60 - n * 8}%" height="12px" />
+								<Skeleton width="{40 - n * 4}%" height="10px" />
+							</div>
+						</div>
+					{/each}
+				</div>
 			{:else}
 				{#each results as r, i (r.display_name + i)}
-					<li
+					{@const title = titleOf(r)}
+					{@const [pre, hit, post] = split(title)}
+					<div
+						class="sugg {i === active ? 'hov' : ''}"
 						role="option"
+						tabindex="-1"
 						aria-selected={i === active}
-						class:active={i === active}
 						onpointerdown={(e) => {
-							e.preventDefault(); // keep input focus so blur doesn't close first
+							e.preventDefault(); // keep input focus so blur doesn't close the list first
 							choose(r);
 						}}
 						onpointerenter={() => (active = i)}
 					>
-						<span class="label">{r.display_name}</span>
-						<span class="add">Add stop</span>
-					</li>
+						<span class="pin"><Icon name="pin" /></span>
+						<span class="tx">
+							<span class="t">{pre}{#if hit}<span class="hit">{hit}</span>{/if}{post}</span>
+							<span class="s">{placeSubtitle(r.display_name, title)}</span>
+						</span>
+						<Button size="sm" class="add" icon="plus" tabindex={-1} aria-label="Add {title}">Add stop</Button>
+					</div>
 				{/each}
 			{/if}
-		</ul>
+		</div>
 	{/if}
 </div>
-
-<style>
-	.search {
-		position: relative;
-	}
-	.field {
-		position: relative;
-	}
-	input {
-		width: 100%;
-		padding: 0.7rem 2.2rem 0.7rem 0.9rem;
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		background: var(--surface);
-		font: inherit;
-	}
-	input:focus {
-		outline: 2px solid var(--brand);
-		outline-offset: -1px;
-	}
-	.spinner {
-		position: absolute;
-		right: 0.8rem;
-		top: 50%;
-		width: 1rem;
-		height: 1rem;
-		margin-top: -0.5rem;
-		border: 2px solid var(--border);
-		border-top-color: var(--brand);
-		border-radius: 50%;
-		animation: spin 0.7s linear infinite;
-	}
-	@keyframes spin {
-		to {
-			transform: rotate(360deg);
-		}
-	}
-	.hint {
-		margin: 0.4rem 0 0;
-		font-size: 0.8rem;
-		color: var(--muted);
-	}
-	.results {
-		position: absolute;
-		z-index: 20;
-		left: 0;
-		right: 0;
-		margin: 0.25rem 0 0;
-		padding: 0.25rem;
-		list-style: none;
-		max-height: 18rem;
-		overflow-y: auto;
-		background: var(--surface);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		box-shadow: var(--shadow);
-	}
-	li[role='option'] {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.75rem;
-		padding: 0.55rem 0.65rem;
-		border-radius: 6px;
-		cursor: pointer;
-		font-size: 0.88rem;
-	}
-	li.active {
-		background: var(--brand-soft);
-	}
-	.label {
-		overflow: hidden;
-		display: -webkit-box;
-		-webkit-line-clamp: 2;
-		line-clamp: 2;
-		-webkit-box-orient: vertical;
-	}
-	.add {
-		flex: none;
-		font-size: 0.75rem;
-		font-weight: 600;
-		color: var(--brand);
-	}
-	.state {
-		padding: 0.7rem;
-		font-size: 0.88rem;
-		color: var(--muted);
-	}
-	.state.error {
-		color: var(--danger);
-	}
-</style>

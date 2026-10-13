@@ -1,13 +1,15 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import { formatDuration, formatKm, moveItem } from '#lib/format.ts';
+	import { moveItem } from '#lib/format.ts';
 	import { sortable } from '#lib/sortable.ts';
 	import type { ItineraryState } from '#lib/state/itinerary.svelte.ts';
+	import { Skeleton } from '#lib/ui/index.ts';
+	import LegConnector from './LegConnector.svelte';
+	import StopRow from './StopRow.svelte';
 
 	let { itinerary }: { itinerary: ItineraryState } = $props();
 
-	let listEl: HTMLOListElement | undefined = $state();
-
+	let listEl = $state<HTMLDivElement>();
 	const ids = $derived(itinerary.stops.map((s) => s.id));
 
 	function move(from: number, to: number) {
@@ -33,174 +35,47 @@
 	});
 </script>
 
-{#if itinerary.stops.length === 0}
-	<div class="empty">
-		<p><strong>No stops yet.</strong></p>
-		<p>Search for a place above to start building your itinerary.</p>
+{#if !itinerary.loaded}
+	<div class="stops" role="status" aria-label="Loading itinerary" data-name="StopList/Loading">
+		{#each [62, 48] as w, n (n)}
+			<div class="stop" style="gap: var(--sp-12); padding: 0 var(--sp-12)">
+				<Skeleton width="30px" height="30px" circle />
+				<div style="flex: 1; display: flex; flex-direction: column; gap: var(--sp-8)">
+					<Skeleton width="{w}%" height="12px" />
+					<Skeleton width="{w - 24}%" height="10px" />
+				</div>
+				<Skeleton width="24px" height="24px" />
+			</div>
+			{#if n === 0}<div class="leg"><Skeleton width="112px" height="22px" radius="var(--r-pill)" /></div>{/if}
+		{/each}
 	</div>
 {:else}
-	<ol class="stops" bind:this={listEl} use:sortable={{ handle: '.grip', onMove: move }}>
+	<div
+		class="stops"
+		role="list"
+		aria-label="Itinerary stops"
+		data-name="StopList"
+		bind:this={listEl}
+		use:sortable={{ item: '.stop', handle: '.grip', onMove: move }}
+	>
 		{#each itinerary.stops as stop, i (stop.id)}
-			{@const selected = stop.id === itinerary.selectedId}
-			{@const nearest = selected ? itinerary.nearestOf(stop.id) : null}
-			{@const next = itinerary.legAfter(stop.id)}
-			<li data-id={stop.id} class:selected>
-				<div class="row">
-					<button
-						class="grip"
-						aria-label={`Reorder ${stop.name}. Use arrow keys or drag.`}
-						onkeydown={(e) => onGripKey(e, i, stop.id)}>⠿</button
-					>
-					<span class="num" aria-hidden="true">{i + 1}</span>
-					<button
-						class="body"
-						aria-pressed={selected}
-						onclick={() => itinerary.select(selected ? null : stop.id)}
-					>
-						<span class="name">{stop.name}</span>
-						{#if stop.address && stop.address !== stop.name}
-							<span class="addr">{stop.address}</span>
-						{/if}
-					</button>
-					<button
-						class="del"
-						aria-label={`Remove ${stop.name}`}
-						onclick={() => itinerary.removeStop(stop.id)}>✕</button
-					>
-				</div>
-				{#if nearest}
-					{@const other = itinerary.stopById(nearest.nearest_id)}
-					<p class="nearest">
-						Nearest stop: <strong>{other?.name ?? '—'}</strong> · {formatKm(nearest.distance_km)}
-					</p>
+			<StopRow
+				{stop}
+				index={i}
+				cluster={itinerary.styleOf(stop.id)}
+				selected={stop.id === itinerary.selectedId}
+				onselect={() => itinerary.select(stop.id === itinerary.selectedId ? null : stop.id)}
+				onremove={() => itinerary.removeStop(stop.id)}
+				onkeymove={(e) => onGripKey(e, i, stop.id)}
+			/>
+			{#if i < itinerary.stops.length - 1}
+				{@const leg = itinerary.legAfter(stop.id)}
+				{#if leg}
+					<LegConnector km={leg.km} seconds={leg.seconds} approx={leg.approx} mode={itinerary.effectiveMode} />
+				{:else}
+					<div class="leg"><Skeleton width="112px" height="22px" radius="var(--r-pill)" /></div>
 				{/if}
-				{#if next}
-					<p class="leg" aria-label={`Distance to next stop ${formatKm(next.km)}`}>
-						↓ {formatKm(next.km)}{next.seconds !== null ? ` · ${formatDuration(next.seconds)}` : ''}
-					</p>
-				{/if}
-			</li>
+			{/if}
 		{/each}
-	</ol>
+	</div>
 {/if}
-
-<style>
-	.empty {
-		padding: 1.25rem 0.5rem;
-		text-align: center;
-		color: var(--muted);
-		font-size: 0.9rem;
-	}
-	.empty p {
-		margin: 0.2rem 0;
-	}
-	.stops {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-	}
-	li {
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		background: var(--surface);
-		margin-bottom: 0.25rem;
-	}
-	li.selected {
-		border-color: var(--accent);
-		box-shadow: 0 0 0 2px var(--accent-soft);
-	}
-	.row {
-		display: flex;
-		align-items: center;
-		gap: 0.4rem;
-		padding: 0.4rem 0.4rem 0.4rem 0.2rem;
-	}
-	.grip {
-		flex: none;
-		width: 1.6rem;
-		height: 2rem;
-		border: 0;
-		background: none;
-		color: var(--muted);
-		cursor: grab;
-		touch-action: none;
-		font-size: 1.1rem;
-		border-radius: 6px;
-	}
-	.grip:hover {
-		background: var(--brand-soft);
-	}
-	.num {
-		flex: none;
-		display: grid;
-		place-items: center;
-		width: 1.6rem;
-		height: 1.6rem;
-		border-radius: 50%;
-		background: var(--brand);
-		color: #fff;
-		font-size: 0.78rem;
-		font-weight: 700;
-	}
-	.selected .num {
-		background: var(--accent);
-	}
-	.body {
-		flex: 1;
-		min-width: 0;
-		display: flex;
-		flex-direction: column;
-		align-items: flex-start;
-		text-align: left;
-		border: 0;
-		background: none;
-		padding: 0.15rem 0.2rem;
-		cursor: pointer;
-		font: inherit;
-		color: inherit;
-	}
-	.name {
-		font-weight: 600;
-		font-size: 0.92rem;
-	}
-	.addr {
-		max-width: 100%;
-		font-size: 0.76rem;
-		color: var(--muted);
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-	.del {
-		flex: none;
-		width: 2rem;
-		height: 2rem;
-		border: 0;
-		border-radius: 6px;
-		background: none;
-		color: var(--muted);
-		cursor: pointer;
-	}
-	.del:hover {
-		background: #fee2e2;
-		color: var(--danger);
-	}
-	.nearest {
-		margin: 0;
-		padding: 0.1rem 0.8rem 0.55rem 3.9rem;
-		font-size: 0.82rem;
-		color: var(--text);
-	}
-	.leg {
-		margin: 0;
-		padding: 0 0.8rem 0.35rem 3.9rem;
-		font-size: 0.74rem;
-		color: var(--muted);
-	}
-	:global(.drag-ghost) {
-		opacity: 0.4;
-	}
-	:global(.drag-chosen) {
-		box-shadow: var(--shadow);
-	}
-</style>

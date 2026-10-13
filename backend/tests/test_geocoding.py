@@ -3,7 +3,7 @@ import pytest
 from fastapi import FastAPI
 
 from routely.deps import get_geocoder
-from routely.errors import UpstreamError
+from routely.errors import RoutelyError, UpstreamError
 from routely.models import GeocodeCandidate
 from routely.services.cache import InMemoryGeocodeCache
 from routely.services.geocoding import (
@@ -107,6 +107,24 @@ async def test_nominatim_http_error_becomes_upstream_error() -> None:
     geocoder, _ = make_geocoder(transport)
     with pytest.raises(UpstreamError):
         await geocoder.search("Paris")
+
+
+async def test_nominatim_429_becomes_rate_limited_error() -> None:
+    transport = httpx.MockTransport(lambda _: httpx.Response(429))
+    geocoder, _ = make_geocoder(transport)
+    with pytest.raises(RoutelyError) as exc:
+        await geocoder.search("Paris")
+    assert exc.value.code == "rate_limited"
+    assert exc.value.status_code == 429
+
+
+async def test_geocode_endpoint_surfaces_rate_limit(app: FastAPI, client: httpx.AsyncClient) -> None:
+    app.dependency_overrides[get_geocoder] = lambda: FakeGeocoder(
+        RoutelyError("rate_limited", "Too many searches, try again in a moment.", status_code=429)
+    )
+    r = await client.get("/geocode", params={"q": "paris"})
+    assert r.status_code == 429
+    assert r.json()["error"]["code"] == "rate_limited"
 
 
 async def test_nominatim_errors_are_not_cached() -> None:

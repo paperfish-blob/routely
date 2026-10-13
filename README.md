@@ -7,6 +7,10 @@ Enter several places, see them on a map as an ordered itinerary, and view the di
 - **The frontend owns the itinerary** and persists it in `localStorage` (key prefix `routely:`).
 - **Supabase-ready.** All persistence goes through one `ItineraryStore` interface, so Postgres/Auth can be added by swapping one implementation (see [Adding Supabase later](#adding-supabase-later)).
 
+## Design
+
+The UI follows `Routely.html` (light mode). The design system, token rules and component catalogue are documented in [`DESIGN.md`](DESIGN.md); the running app has a live style guide at `/design`. `npm test` fails if UI code hardcodes colours or type sizes instead of using the design tokens.
+
 ## Layout
 
 ```
@@ -50,7 +54,7 @@ Open http://localhost:5173.
 
 ```bash
 cd backend && uv run pytest        # unit + API tests (external providers mocked)
-cd frontend && npm test            # unit tests
+cd frontend && npm test            # unit tests (including the design-token guard)
 cd frontend && npm run check       # svelte-check / TypeScript
 ```
 
@@ -74,7 +78,7 @@ Environment variables, all prefixed `ROUTELY_`; see [`backend/.env.example`](bac
 
 ## API
 
-All endpoints are stateless. Stops are `{id, name, lat, lng}`; `lat` ∈ [-90, 90], `lng` ∈ [-180, 180], ids unique, 2–25 stops. Errors are always `{"error": {"code", "message", "details?"}}` (`422 validation_error`, `502 upstream_error`, ...). Interactive docs at http://localhost:8001/docs.
+All endpoints are stateless. Stops are `{id, name, lat, lng}`; `lat` ∈ [-90, 90], `lng` ∈ [-180, 180], ids unique, 2–25 stops. Errors are always `{"error": {"code", "message", "details?"}}` (`422 validation_error`, `429 rate_limited` when the geocoder throttles, `502 upstream_error`, ...). Interactive docs at http://localhost:8001/docs.
 
 | Endpoint | Body / query | Returns |
 | --- | --- | --- |

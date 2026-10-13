@@ -1,0 +1,149 @@
+/*
+ * Routely design tokens: the ONLY file that may contain raw colours, font sizes,
+ * font families or shadows. Everything else must reference these variables.
+ * Source of truth: Routely.html (light theme). Light mode only.
+ * See DESIGN.md before adding or changing anything here.
+ */
+:root {
+	/* ── Colour: surfaces, ink, lines ─────────────────────────────── */
+	--surface: #ffffff;
+	--surface-2: #f3f5f4;
+	--ink: #14262b;
+	--ink-2: #46585d;
+	--ink-3: #5c6e72;
+	--line: #e1e7e5;
+	--grab: #c3cfcd;
+
+	/* ── Colour: brand ────────────────────────────────────────────── */
+	--primary: #0e5a5e;
+	--on-primary: #ffffff;
+	--primary-soft: #e0efee;
+	--accent: #f4a340;
+	--on-accent: #2b1a00;
+	--accent-soft: #fdf1dd;
+	--accent-line: #b86e0e;
+	--accent-route: #e58a12;
+
+	/* ── Colour: clusters (each also has a distinct SHAPE, see .badge) ── */
+	--cA: #4048c7;
+	--cA-fg: #ffffff;
+	--cA-soft: #e8eafb;
+	--cB: #a3366f;
+	--cB-fg: #ffffff;
+	--cB-soft: #f8e6ef;
+	--cC: #8a5a00;
+	--cC-fg: #ffffff;
+	--cC-soft: #f7ecd3;
+	--cD: #2b7a55;
+	--cD-fg: #ffffff;
+	--cD-soft: #e1f1e8;
+
+	/* ── Colour: status ───────────────────────────────────────────── */
+	--danger: #b3261e;
+	--danger-soft: #fcebe9;
+	--ok: #1f7a4d;
+	--ok-soft: #e3f3ea;
+	--focus: #2b59d9;
+	--locate: #2b59d9;
+
+	/* ── Colour: map ──────────────────────────────────────────────── */
+	--map-bg: #efeee7;
+	--casing: #ffffff;
+	--route-dash: #7b8c8f;
+	--scrim: rgba(255, 255, 255, 0.82);
+
+	/* ── Shadows ──────────────────────────────────────────────────── */
+	--shadow: 0 1px 2px rgba(20, 38, 43, 0.06), 0 8px 24px rgba(20, 38, 43, 0.1);
+	--shadow-sm: 0 1px 2px rgba(20, 38, 43, 0.1);
+	--shadow-side: 4px 0 20px rgba(20, 38, 43, 0.06);
+	--shadow-sheet: 0 -6px 24px rgba(20, 38, 43, 0.16);
+	--shadow-marker: 0 2px 6px rgba(0, 0, 0, 0.35);
+	--shadow-marker-sel: 0 3px 10px rgba(0, 0, 0, 0.4);
+
+	/* ── Typography ───────────────────────────────────────────────── */
+	--font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+	--fs-nano: 10px;
+	--fs-micro: 11px;
+	--fs-micro-2: 11.5px;
+	--fs-caption: 12px;
+	--fs-caption-2: 12.5px;
+	--fs-small: 13px;
+	--fs-small-2: 13.5px;
+	--fs-body: 14px;
+	--fs-body-lg: 15px;
+	--fs-marker-sel: 17px;
+	--fs-title-sm: 18px;
+	--fs-title: 19px;
+	--fs-title-md: 20px;
+	--fs-brand: 21px;
+	--fs-stat: 22px;
+	--fs-display-sm: 26px;
+	--fs-display: 28px;
+	--fs-body-lg-2: 14.5px;
+	--fw-regular: 400;
+	--fw-medium: 500;
+	--fw-semibold: 600;
+	--fw-bold: 700;
+	--fw-extrabold: 800;
+	--lh-base: 1.35;
+	--ls-tight: -0.02em;
+	--ls-snug: -0.01em;
+	--ls-caps: 0.03em;
+
+	/* ── Radius ───────────────────────────────────────────────────── */
+	--r-xs: 4px;
+	--r-sm: 6px;
+	--r-md: 8px;
+	--r-seg: 9px;
+	--r-lg: 10px;
+	--r-xl: 12px;
+	--r-2xl: 16px;
+	--r-3xl: 20px;
+	--r-pill: 999px;
+
+	/* ── Spacing (px value in the name) ───────────────────────────── */
+	--sp-2: 2px;
+	--sp-3: 3px;
+	--sp-4: 4px;
+	--sp-6: 6px;
+	--sp-8: 8px;
+	--sp-10: 10px;
+	--sp-12: 12px;
+	--sp-14: 14px;
+	--sp-16: 16px;
+	--sp-18: 18px;
+	--sp-20: 20px;
+	--sp-22: 22px;
+	--sp-24: 24px;
+	--sp-28: 28px;
+
+	/* ── Sizes ────────────────────────────────────────────────────── */
+	--h-btn: 44px;
+	--h-btn-sm: 36px;
+	--h-field: 48px;
+	--h-seg: 40px;
+	--h-seg-lg: 44px;
+	--h-ibtn: 40px;
+	--h-ibtn-touch: 44px;
+	--h-stop: 64px;
+	--h-stop-touch: 68px;
+	--h-leg: 36px;
+	--h-leg-touch: 34px;
+	--size-badge: 30px;
+	--size-badge-sm: 22px;
+	--w-sidebar: 400px;
+	--w-panel: 440px;
+	--w-popup: 240px;
+	--h-sheet-collapsed: 112px;
+	--h-sheet-half: 430px;
+	--h-sheet-full: 88dvh;
+	--bp-mobile: 768px; /* documented only: media queries cannot read variables */
+
+	/* ── Layers ───────────────────────────────────────────────────── */
+	--z-map: 1;
+	--z-map-ui: 2;
+	--z-side: 3;
+	--z-panel: 4;
+	--z-dropdown: 6;
+	--z-toast: 10;
+}

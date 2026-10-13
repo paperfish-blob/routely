@@ -66,8 +66,16 @@ export const api = {
 		);
 		return res.results;
 	},
-	distances(stops: Stop[], signal?: AbortSignal): Promise<DistancesResponse> {
-		return post('/distances', { stops: wire(stops) }, signal);
+	distances(
+		stops: Stop[],
+		clusterThresholdKm?: number,
+		signal?: AbortSignal
+	): Promise<DistancesResponse> {
+		return post(
+			'/distances',
+			{ stops: wire(stops), cluster_threshold_km: clusterThresholdKm ?? null },
+			signal
+		);
 	},
 	route(
 		stops: Stop[],

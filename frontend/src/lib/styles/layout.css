@@ -1,0 +1,309 @@
+/* App shell and app-specific additions on top of the design's components. Tokens only. */
+
+.app {
+	position: relative;
+	width: 100%;
+	height: 100dvh;
+	overflow: hidden;
+	background: var(--surface);
+	--sheet-h: var(--h-sheet-collapsed);
+}
+
+/* Real lists scroll (the design artboards are static). */
+.stops {
+	overflow-y: auto;
+	min-height: 0;
+}
+.sheet .stops {
+	overflow-y: auto;
+	flex: 1;
+	min-height: 0;
+}
+
+/* Small segmented variant (cluster threshold). */
+.seg.sm {
+	padding: var(--sp-2);
+}
+.seg.sm button {
+	height: var(--h-btn-sm);
+	padding: 0 var(--sp-10);
+	font-size: var(--fs-caption-2);
+}
+
+/* Map overlays that only exist in the live app. */
+.map-banner {
+	position: absolute;
+	left: var(--sp-20);
+	top: 98px;
+	width: min(560px, calc(100% - 100px));
+	z-index: var(--z-map-ui);
+	box-shadow: var(--shadow);
+}
+.is-mobile .map-banner {
+	left: var(--sp-12);
+	right: var(--sp-12);
+	top: 76px;
+	width: auto;
+}
+.locate-dot {
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	background: var(--locate);
+	border: 3px solid var(--surface);
+	box-shadow: var(--shadow-marker);
+}
+.toasts {
+	position: absolute;
+	z-index: var(--z-toast);
+	left: calc(var(--w-sidebar) + var(--sp-20));
+	bottom: var(--sp-24);
+	display: flex;
+	flex-direction: column;
+	gap: var(--sp-8);
+}
+.is-mobile .toasts {
+	left: var(--sp-12);
+	right: var(--sp-12);
+	bottom: calc(var(--sheet-h) + var(--sp-12) + var(--h-seg-lg) + var(--sp-24));
+}
+.panel.auto {
+	bottom: auto;
+	max-height: calc(100% - 40px);
+}
+.panel-sec {
+	padding: 0 var(--sp-22) var(--sp-4);
+	font-size: var(--fs-caption-2);
+	color: var(--ink-2);
+}
+.panel-sec label {
+	display: flex;
+	align-items: center;
+	gap: var(--sp-8);
+	font-weight: var(--fw-semibold);
+}
+.cmp {
+	overflow-y: auto;
+}
+
+/* Mobile: the map fills the screen; the sheet and floating controls sit on top. */
+.is-mobile .map {
+	left: 0;
+}
+.is-mobile .m-seg {
+	bottom: calc(var(--sheet-h) + var(--sp-12));
+}
+.is-mobile .sheet {
+	height: var(--sheet-h);
+	transition: height 0.25s ease;
+}
+.is-mobile .panel {
+	left: var(--sp-12);
+	right: var(--sp-12);
+	top: auto;
+	bottom: var(--sp-12);
+	width: auto;
+	max-height: 70dvh;
+	z-index: calc(var(--z-panel) + 1);
+}
+.is-mobile .legend,
+.is-mobile .mctl,
+.is-mobile .toolbar,
+.is-mobile .scalebar {
+	display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+	.is-mobile .sheet {
+		transition: none;
+	}
+}
+
+/* Accent icon button (mobile "Suggest better order"). */
+.ibtn.accent {
+	background: var(--accent);
+	color: var(--on-accent);
+}
+.ibtn.accent:hover {
+	background: var(--accent);
+	filter: brightness(1.08);
+}
+.ibtn[disabled],
+.ibtn.accent[disabled] {
+	background: var(--surface-2);
+	color: var(--ink-3);
+	cursor: not-allowed;
+	filter: none;
+}
+
+/* Cluster shapes for the small letter chip (design shows these inline on the components sheet). */
+.chip .l.shC {
+	border-radius: 0;
+	clip-path: polygon(25% 4%, 75% 4%, 100% 50%, 75% 96%, 25% 96%, 0 50%);
+}
+.chip .l.shD {
+	border-radius: var(--r-xs);
+}
+
+/* Stop row: the text area is a button so the whole name/subtitle selects the stop. */
+.stop .txt {
+	border: 0;
+	background: none;
+	padding: 0;
+	text-align: left;
+	cursor: pointer;
+	color: inherit;
+	align-items: flex-start;
+}
+.stop .sb:empty {
+	display: none;
+}
+.grip {
+	touch-action: none;
+}
+.stop.drag-ghost {
+	opacity: 0.4;
+}
+/* Sortable's fallback clone is appended to <body>; keep it above everything. */
+.stop.drag {
+	z-index: var(--z-toast);
+}
+
+/* Live map plumbing. */
+.map-canvas {
+	position: absolute;
+	inset: 0;
+	z-index: var(--z-map);
+}
+.map-gl {
+	width: 100%;
+	height: 100%;
+}
+.legwrap,
+.popupwrap {
+	width: 0;
+	height: 0;
+}
+.legchip {
+	pointer-events: none;
+}
+.popupwrap .popup {
+	left: 39px;
+	top: -52px;
+}
+.popupwrap .popup.flip {
+	left: auto;
+	right: 39px;
+}
+.popup.flip::after {
+	left: auto;
+	right: -7px;
+	border-left: 0;
+	border-bottom: 0;
+	border-right: 1px solid var(--line);
+	border-top: 1px solid var(--line);
+}
+.attrib a {
+	color: inherit;
+}
+.mk .badge {
+	cursor: pointer;
+}
+
+/* Mobile: the suggestion list hangs under the floating search bar. */
+.is-mobile .search > .dd {
+	left: var(--sp-12);
+	right: var(--sp-12);
+	top: 72px;
+	z-index: var(--z-dropdown);
+}
+.is-mobile .search > .banner {
+	position: absolute;
+	left: var(--sp-12);
+	right: var(--sp-12);
+	top: 72px;
+	z-index: var(--z-map-ui);
+}
+
+/* Mobile sheet header: itinerary name + accent suggest button. */
+.sheet-head {
+	display: flex;
+	align-items: center;
+	gap: var(--sp-8);
+	padding: 0 var(--sp-12) 0 var(--sp-20);
+	flex: none;
+}
+.sheet-head input {
+	flex: 1;
+	min-width: 0;
+	border: 0;
+	background: transparent;
+	outline: 0;
+	padding: 0;
+	font-weight: var(--fw-extrabold);
+	font-size: var(--fs-title-sm);
+	letter-spacing: var(--ls-snug);
+}
+.side .help.hint {
+	padding: 0 var(--sp-20) var(--sp-16);
+	margin: 0;
+}
+
+.row-between {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--sp-8);
+}
+/* The small segmented control inside a card header is one step tighter than the default small one. */
+.row-between .seg.sm button {
+	height: 28px;
+	padding: 0 var(--sp-6);
+	font-size: var(--fs-caption);
+}
+.row-between .lbl {
+	white-space: nowrap;
+}
+.attrib a {
+	text-decoration: none;
+}
+
+.popupwrap .popup.above {
+	top: auto;
+	bottom: 34px;
+}
+.popup.above::after {
+	display: none;
+}
+
+/* Our own clear button replaces the browser's native one in search inputs. */
+input[type='search']::-webkit-search-cancel-button,
+input[type='search']::-webkit-search-decoration {
+	-webkit-appearance: none;
+	appearance: none;
+	display: none;
+}
+.is-mobile .attrib {
+	bottom: calc(var(--sheet-h) + var(--sp-12) + var(--h-seg-lg) + var(--sp-24));
+}
+
+.popupwrap .popup.below {
+	top: 34px;
+	bottom: auto;
+}
+.popup.below::after {
+	display: none;
+}
+
+.is-mobile .saving {
+	margin: 0 var(--sp-16);
+}
+.is-mobile .saving .big {
+	font-size: var(--fs-title-md);
+}
+.is-mobile .panel-h,
+.is-mobile .panel-sec,
+.is-mobile .cmp,
+.is-mobile .panel-f {
+	padding-left: var(--sp-16);
+	padding-right: var(--sp-16);
+}

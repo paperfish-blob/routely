@@ -6,7 +6,7 @@ from collections.abc import Awaitable, Callable
 
 import httpx
 
-from routely.errors import UpstreamError
+from routely.errors import RoutelyError, UpstreamError
 from routely.models import GeocodeCandidate
 from routely.services.cache import GeocodeCache
 
@@ -99,6 +99,14 @@ class NominatimGeocoder(GeocodingService):
             )
             response.raise_for_status()
             payload = response.json()
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 429:
+                raise RoutelyError(
+                    "rate_limited",
+                    "Too many searches, try again in a moment.",
+                    status_code=429,
+                ) from exc
+            raise UpstreamError("Geocoding provider unavailable") from exc
         except (httpx.HTTPError, ValueError) as exc:
             raise UpstreamError("Geocoding provider unavailable") from exc
         return parse_nominatim(payload)

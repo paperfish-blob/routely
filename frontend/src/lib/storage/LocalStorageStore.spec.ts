@@ -56,6 +56,30 @@ describe('LocalStorageStore', () => {
 	});
 });
 
+describe('itinerary name and cluster threshold', () => {
+	it('round-trips both and tolerates their absence (older saves)', async () => {
+		const store = new LocalStorageStore(memoryStorage());
+		await store.save({ ...itinerary, name: 'Peninsular Malaysia Weekend', clusterThresholdKm: 60 });
+		expect(await store.load()).toMatchObject({ name: 'Peninsular Malaysia Weekend', clusterThresholdKm: 60 });
+
+		const old = parseItinerary(JSON.stringify({ version: 1, routeMode: 'driving', stops: [] }));
+		expect(old?.name).toBeUndefined();
+		expect(old?.clusterThresholdKm).toBeUndefined();
+	});
+
+	it('ignores invalid values', () => {
+		const parsed = parseItinerary(JSON.stringify({ version: 1, routeMode: 'driving', stops: [], name: 5, clusterThresholdKm: -3 }));
+		expect(parsed?.name).toBeUndefined();
+		expect(parsed?.clusterThresholdKm).toBeUndefined();
+		expect(parseItinerary(JSON.stringify({ version: 1, routeMode: 'driving', stops: [], clusterThresholdKm: 'far' }))?.clusterThresholdKm).toBeUndefined();
+	});
+
+	it('caps a very long name', () => {
+		const parsed = parseItinerary(JSON.stringify({ version: 1, routeMode: 'driving', stops: [], name: 'x'.repeat(500) }));
+		expect(parsed?.name).toHaveLength(80);
+	});
+});
+
 describe('parseItinerary', () => {
 	it('rejects corrupt JSON and wrong versions', () => {
 		expect(parseItinerary('{nope')).toBeNull();

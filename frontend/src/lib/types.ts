@@ -14,6 +14,9 @@ export interface Itinerary {
 	version: 1;
 	stops: Stop[];
 	routeMode: RouteMode;
+	/** Optional so itineraries saved before this field existed still load. */
+	name?: string;
+	clusterThresholdKm?: number;
 }
 
 export interface GeocodeCandidate {

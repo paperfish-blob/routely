@@ -25,7 +25,13 @@ export function parseItinerary(raw: string | null): Itinerary | null {
 		const mode = MODES.includes(data.routeMode as RouteMode)
 			? (data.routeMode as RouteMode)
 			: 'straight';
-		return { version: 1, stops: data.stops.filter(isStop), routeMode: mode };
+		const itinerary: Itinerary = { version: 1, stops: data.stops.filter(isStop), routeMode: mode };
+		if (typeof data.name === 'string') itinerary.name = data.name.slice(0, 80);
+		const t = data.clusterThresholdKm;
+		if (typeof t === 'number' && Number.isFinite(t) && t > 0 && t <= 20000) {
+			itinerary.clusterThresholdKm = t;
+		}
+		return itinerary;
 	} catch {
 		return null;
 	}

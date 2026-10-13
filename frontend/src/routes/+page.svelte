@@ -1,263 +1,253 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import MapView, { type MapLine, type PopupInfo } from '#lib/components/MapView.svelte';
-	import OptimizePanel from '#lib/components/OptimizePanel.svelte';
-	import RouteControls from '#lib/components/RouteControls.svelte';
+	import { api } from '#lib/api.ts';
+	import BottomSheet, { type SheetState } from '#lib/components/BottomSheet.svelte';
+	import EmptyState from '#lib/components/EmptyState.svelte';
+	import ItineraryName from '#lib/components/ItineraryName.svelte';
+	import Logo from '#lib/components/Logo.svelte';
+	import MapControls from '#lib/components/MapControls.svelte';
+	import MapLegend from '#lib/components/MapLegend.svelte';
+	import MapToolbar from '#lib/components/MapToolbar.svelte';
+	import MapView, { type LegChip, type MapLine, type PopupInfo } from '#lib/components/MapView.svelte';
 	import SearchBox from '#lib/components/SearchBox.svelte';
 	import StopList from '#lib/components/StopList.svelte';
-	import SummaryPanel from '#lib/components/SummaryPanel.svelte';
-	import { formatKm, orderBy, stopFromCandidate } from '#lib/format.ts';
+	import SuggestOrderPanel from '#lib/components/SuggestOrderPanel.svelte';
+	import SummaryCard from '#lib/components/SummaryCard.svelte';
+	import ToastHost from '#lib/components/ToastHost.svelte';
+	import { durationParts, formatKm, formatKmValue, orderBy, placeSubtitle, stopFromCandidate } from '#lib/format.ts';
+	import { midpoint, nearestOnLine, type LngLat } from '#lib/map/geo.ts';
 	import { ItineraryState } from '#lib/state/itinerary.svelte.ts';
+	import { toasts } from '#lib/state/toasts.svelte.ts';
 	import { createStore } from '#lib/storage/index.ts';
+	import type { GeocodeCandidate, RouteMode } from '#lib/types.ts';
+	import { Banner, Button, Icon, IconButton, SegmentedControl, type SegmentOption } from '#lib/ui/index.ts';
+
+	const EXAMPLE_PLACES = ['Kuala Lumpur', 'Malacca', 'Penang'];
+	const MOBILE_MAX = 768;
+	const SHEET_PX = { collapsed: 112, half: 430 } as const;
 
 	const itinerary = new ItineraryState(createStore());
 	onMount(() => itinerary.init());
 
-	// --- responsive bottom sheet -------------------------------------------
-	type Sheet = 'peek' | 'half' | 'full';
-	const SHEET_ORDER: Sheet[] = ['peek', 'half', 'full'];
-	const SHEET_FRACTION: Record<Sheet, number> = { peek: 0, half: 0.5, full: 0.88 };
-	const PEEK_PX = 132; // grabber + title + search; everything else is hidden when collapsed
-	const MOBILE_MAX = 768;
+	// ── responsive layout ────────────────────────────────────────────────
+	let innerWidth = $state(typeof window === 'undefined' ? 1280 : window.innerWidth);
+	let innerHeight = $state(typeof window === 'undefined' ? 800 : window.innerHeight);
+	let sheet = $state<SheetState>('collapsed');
+	let mapView = $state<ReturnType<typeof MapView>>();
 
-	let innerWidth = $state(1024);
-	let innerHeight = $state(768);
-	let sheet = $state<Sheet>('peek');
 	const isMobile = $derived(innerWidth <= MOBILE_MAX);
-	const bottomInset = $derived(
-		isMobile ? Math.max(PEEK_PX, SHEET_FRACTION[sheet] * innerHeight) : 0
+	const sheetPx = $derived(
+		sheet === 'full'
+			? Math.round(innerHeight * 0.88)
+			: Math.min(SHEET_PX[sheet], Math.round(innerHeight * 0.6))
+	);
+	const insets = $derived(
+		isMobile
+			? { top: 110, bottom: sheetPx + 56, left: 40, right: 40 }
+			: { top: 140, bottom: 70, left: 60, right: itinerary.suggestOpen ? 500 : 60 }
 	);
 
-	function stepSheet(delta: number) {
-		const i = SHEET_ORDER.indexOf(sheet) + delta;
-		sheet = SHEET_ORDER[Math.min(SHEET_ORDER.length - 1, Math.max(0, i))];
-	}
+	// ── map inputs ───────────────────────────────────────────────────────
+	const stopCoords = $derived(itinerary.stops.map((s) => [s.lng, s.lat] as LngLat));
+	const previewing = $derived(itinerary.suggestOpen && itinerary.activeProposal !== null && itinerary.proposalChangesOrder);
 
-	let dragStartY: number | null = null;
-	function grabStart(e: PointerEvent) {
-		dragStartY = e.clientY;
-		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-	}
-	function grabEnd(e: PointerEvent) {
-		if (dragStartY === null) return;
-		const dy = e.clientY - dragStartY;
-		dragStartY = null;
-		if (Math.abs(dy) < 12) stepSheet(sheet === 'full' ? -2 : 1); // tap: expand / collapse
-		else stepSheet(dy < 0 ? 1 : -1);
-	}
-
-	// --- map inputs ---------------------------------------------------------
 	const line = $derived<MapLine | null>(
 		itinerary.stops.length < 2
 			? null
 			: itinerary.roadGeometry
-				? { coordinates: itinerary.roadGeometry, kind: 'road' }
-				: { coordinates: itinerary.stops.map((s) => [s.lng, s.lat]), kind: 'straight' }
+				? { coordinates: itinerary.roadGeometry, kind: previewing ? 'current' : 'road' }
+				: { coordinates: stopCoords, kind: previewing ? 'current' : 'straight' }
 	);
 
-	const previewLine = $derived<[number, number][] | null>(
-		itinerary.activeProposal && itinerary.proposalChangesOrder
-			? orderBy(itinerary.stops, itinerary.activeProposal.order).map((s) => [s.lng, s.lat])
+	const suggestedLine = $derived<LngLat[] | null>(
+		previewing && itinerary.activeProposal
+			? orderBy(itinerary.stops, itinerary.activeProposal.order).map((s) => [s.lng, s.lat] as LngLat)
 			: null
 	);
 
-	const nearest = $derived(itinerary.nearestOf(itinerary.selectedId));
-	const nearestStop = $derived(nearest ? itinerary.stopById(nearest.nearest_id) : undefined);
-
-	const nearestLink = $derived<[[number, number], [number, number]] | null>(
-		itinerary.selected && nearestStop
-			? [
-					[itinerary.selected.lng, itinerary.selected.lat],
-					[nearestStop.lng, nearestStop.lat]
-				]
-			: null
+	const legChips = $derived<LegChip[]>(
+		itinerary.stops.slice(0, -1).flatMap((stop, i) => {
+			const leg = itinerary.legAfter(stop.id);
+			if (!leg) return [];
+			const next = itinerary.stops[i + 1];
+			const mid = midpoint([stop.lng, stop.lat], [next.lng, next.lat]);
+			const position = itinerary.roadGeometry ? nearestOnLine(itinerary.roadGeometry as LngLat[], mid) : mid;
+			return [{ id: stop.id, position, text: `${leg.approx ? '≈ ' : ''}${formatKm(leg.km)}` }];
+		})
 	);
 
-	const popup = $derived<PopupInfo | null>(
-		itinerary.selected
-			? {
-					title: itinerary.selected.name,
-					detail:
-						nearest && nearestStop
-							? `Nearest: ${nearestStop.name} · ${formatKm(nearest.distance_km)}`
-							: 'Add another stop to see its nearest neighbour.'
-				}
-			: null
+	const popup = $derived.by<PopupInfo | null>(() => {
+		const stop = itinerary.selected;
+		if (!stop) return null;
+		const nearest = itinerary.nearestOf(stop.id);
+		const other = nearest ? itinerary.stopById(nearest.nearest_id) : undefined;
+		return {
+			title: stop.name,
+			cluster: itinerary.styleOf(stop.id),
+			subtitle: placeSubtitle(stop.address, stop.name),
+			nearest: nearest && other ? { name: other.name, distance: formatKm(nearest.distance_km) } : null
+		};
+	});
+
+	const routingMessage = $derived(
+		itinerary.activeRoute?.fallback_reason === 'no_route'
+			? 'No road route exists between these stops, showing straight-line distances instead.'
+			: 'Couldn’t get road directions, showing straight-line distances instead.'
 	);
 
-	function confirmClear() {
-		if (confirm('Remove all stops from this itinerary?')) itinerary.clear();
+	// ── actions ──────────────────────────────────────────────────────────
+	function addCandidate(c: GeocodeCandidate) {
+		itinerary.addStop(stopFromCandidate(c));
+	}
+
+	async function addFromQuery(query: string) {
+		try {
+			const [first] = await api.geocode(query);
+			if (first) addCandidate(first);
+			else toasts.push(`No places found for “${query}”.`);
+		} catch {
+			toasts.push(`Couldn’t search for “${query}”. Try again in a moment.`);
+		}
+	}
+
+	const MODE_SHORT: SegmentOption<RouteMode>[] = $derived([
+		{ value: 'straight', label: 'Line', icon: 'line' },
+		{ value: 'driving', label: 'Drive', icon: 'car', disabled: itinerary.routingDegraded },
+		{ value: 'walking', label: 'Walk', icon: 'walk', disabled: itinerary.routingDegraded }
+	]);
+
+	const time = $derived(itinerary.totalSeconds === null ? null : durationParts(itinerary.totalSeconds));
+	const canSuggest = $derived(itinerary.stops.length >= 3);
+
+	function onWindowKey(e: KeyboardEvent) {
+		if (e.key !== 'Escape') return;
+		if (itinerary.suggestOpen) itinerary.closeSuggest();
+		else itinerary.select(null);
 	}
 </script>
 
-<svelte:window bind:innerWidth bind:innerHeight />
+<svelte:window bind:innerWidth bind:innerHeight onkeydown={onWindowKey} />
 
-<div class="app">
-	<aside class="sidebar" data-sheet={sheet}>
-		<div
-			class="grabber"
-			role="button"
-			tabindex="0"
-			aria-label="Resize panel"
-			onpointerdown={grabStart}
-			onpointerup={grabEnd}
-			onkeydown={(e) => {
-				if (e.key === 'Enter' || e.key === ' ') stepSheet(sheet === 'full' ? -2 : 1);
-			}}
-		>
-			<span></span>
-		</div>
-
-		<header>
-			<h1>Routely</h1>
-			{#if itinerary.stops.length > 0}
-				<button class="link" onclick={confirmClear}>Clear all</button>
-			{/if}
-		</header>
-
-		<SearchBox
-			disabled={!itinerary.canAdd()}
-			onfocus={() => {
-				if (isMobile && sheet === 'peek') sheet = 'half';
-			}}
-			onselect={(c) => itinerary.addStop(stopFromCandidate(c))}
-		/>
-
-		<div class="rest">
-			<RouteControls {itinerary} />
-			<OptimizePanel {itinerary} />
-
-			<div class="scroll">
-				{#if !itinerary.loaded}
-					<p class="muted">Loading your itinerary…</p>
-				{:else}
-					<StopList {itinerary} />
-					<SummaryPanel {itinerary} />
+<div class="app {isMobile ? 'is-mobile' : ''}" style="--sheet-h: {isMobile ? sheetPx : 0}px">
+	{#if !isMobile}
+		<aside class="side" aria-label="Itinerary" data-name="Sidebar">
+			<div class="side-head" data-name="Sidebar/Header">
+				<Logo />
+				<ItineraryName value={itinerary.name} onchange={(v) => itinerary.setName(v)} />
+				{#if itinerary.loaded && itinerary.stops.length > 0}
+					<SearchBox disabled={!itinerary.canAdd()} onselect={addCandidate} placeholder="Search for a place" />
 				{/if}
 			</div>
+
+			{#if itinerary.loaded && itinerary.stops.length === 0}
+				<EmptyState examples={EXAMPLE_PLACES} ontry={addFromQuery}>
+					{#snippet search()}
+						<SearchBox onselect={addCandidate} autofocus />
+					{/snippet}
+				</EmptyState>
+			{:else}
+				<StopList {itinerary} />
+				{#if itinerary.loaded && itinerary.stops.length === 1}
+					<p class="help info hint"><Icon name="info" size="sm" />Add one more stop to see distances and routes.</p>
+				{:else if itinerary.stops.length >= 2 || !itinerary.loaded}
+					<SummaryCard {itinerary} />
+				{/if}
+			{/if}
+		</aside>
+	{:else}
+		<SearchBox variant="float" disabled={!itinerary.canAdd()} onselect={addCandidate} />
+	{/if}
+
+	<MapView
+		bind:this={mapView}
+		stops={itinerary.stops}
+		styleOf={(id) => itinerary.styleOf(id)}
+		clusters={itinerary.clusterInfos}
+		selectedId={itinerary.selectedId}
+		{line}
+		{suggestedLine}
+		{legChips}
+		showScale={!previewing}
+		{popup}
+		{insets}
+		onselect={(id) => itinerary.select(id)}
+	>
+		{#if !isMobile}
+			<MapToolbar {itinerary} />
+			<MapControls
+				onzoomin={() => mapView?.zoomIn()}
+				onzoomout={() => mapView?.zoomOut()}
+				onfit={itinerary.stops.length > 0 ? () => mapView?.fit() : undefined}
+				onlocate={() => mapView?.locate()}
+			/>
+			{#if previewing}<MapLegend />{/if}
+		{/if}
+
+		{#if itinerary.routingBannerVisible}
+			<div class="map-banner">
+				<Banner variant="warn" onclose={() => itinerary.dismissRoutingBanner()}>
+					{routingMessage}
+					{#snippet actions()}
+						<Button variant="secondary" size="sm" style="margin: -4px 0" onclick={() => itinerary.retryRoute()}>Retry</Button>
+					{/snippet}
+				</Banner>
+			</div>
+		{:else if itinerary.notice}
+			<div class="map-banner">
+				<Banner variant={itinerary.notice.variant} onclose={() => itinerary.dismissNotice()}>{itinerary.notice.message}</Banner>
+			</div>
+		{/if}
+
+	</MapView>
+
+	<!-- Outside <MapView>: the map is its own stacking context, so the panel could not rise above the mobile sheet from inside it. -->
+	{#if itinerary.suggestOpen}
+		<SuggestOrderPanel {itinerary} />
+	{/if}
+
+	{#if isMobile}
+		<MapControls variant="mobile" onfit={() => mapView?.fit()} onlocate={() => mapView?.locate()} />
+		<div class="m-seg" data-name="ModeToggle">
+			<SegmentedControl
+				size="lg"
+				label="Travel mode"
+				options={MODE_SHORT}
+				value={itinerary.effectiveMode}
+				onchange={(m) => itinerary.setRouteMode(m)}
+			/>
 		</div>
-	</aside>
+		<BottomSheet state={sheet} onstate={(s) => (sheet = s)} label={sheet === 'collapsed' ? 'Itinerary summary' : 'Itinerary'}>
+			{#if sheet !== 'collapsed'}
+				<div class="sheet-head">
+					<label class="sr" for="sheet-name">Itinerary name</label>
+					<input id="sheet-name" value={itinerary.name} placeholder="Untitled itinerary" maxlength="80" oninput={(e) => itinerary.setName(e.currentTarget.value)} />
+					<IconButton label="Suggest better order" icon="sparkles" accent disabled={!canSuggest} onclick={() => itinerary.openSuggest()} />
+				</div>
+			{/if}
+			<div class="sheet-sum num" data-name="SummaryRow" style={sheet === 'collapsed' ? 'padding-right: var(--sp-12)' : 'padding-top: var(--sp-2)'}>
+				<span class="v">{itinerary.totalKm === null ? '—' : formatKmValue(itinerary.totalKm)} <small>km</small></span>
+				<span class="sep"></span>
+				<span class="v">{itinerary.stops.length} <small>{itinerary.stops.length === 1 ? 'stop' : 'stops'}</small></span>
+				{#if sheet !== 'collapsed'}
+					<span class="sep"></span>
+					<span class="v">{time ? time.main : '—'} <small>{time?.unit ?? ''}</small></span>
+				{:else}
+					<IconButton label="Suggest better order" icon="sparkles" accent disabled={!canSuggest} onclick={() => itinerary.openSuggest()} />
+				{/if}
+			</div>
+			{#if sheet !== 'collapsed'}
+				{#if itinerary.loaded && itinerary.stops.length === 0}
+					<EmptyState examples={EXAMPLE_PLACES} ontry={addFromQuery}>
+						{#snippet search()}
+							<p class="help info"><Icon name="search" size="sm" />Use the search bar above to add a stop.</p>
+						{/snippet}
+					</EmptyState>
+				{:else}
+					<StopList {itinerary} />
+				{/if}
+			{/if}
+		</BottomSheet>
+	{/if}
 
-	<main class="map-wrap">
-		<MapView
-			stops={itinerary.stops}
-			selectedId={itinerary.selectedId}
-			{line}
-			{previewLine}
-			{nearestLink}
-			{popup}
-			{bottomInset}
-			onselect={(id) => itinerary.select(id)}
-		/>
-	</main>
+	<ToastHost />
 </div>
-
-<style>
-	.app {
-		display: grid;
-		grid-template-columns: 390px 1fr;
-		height: 100dvh;
-	}
-	.sidebar {
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-		min-height: 0;
-		padding: 1rem;
-		background: var(--bg);
-		border-right: 1px solid var(--border);
-		z-index: 5;
-	}
-	.rest {
-		display: flex;
-		flex: 1;
-		flex-direction: column;
-		gap: 0.75rem;
-		min-height: 0;
-	}
-	.scroll {
-		flex: 1;
-		min-height: 0;
-		overflow-y: auto;
-		padding-bottom: 1rem;
-	}
-	header {
-		display: flex;
-		align-items: baseline;
-		justify-content: space-between;
-	}
-	h1 {
-		margin: 0;
-		font-size: 1.5rem;
-		letter-spacing: -0.02em;
-		color: var(--brand);
-	}
-	.link {
-		border: 0;
-		background: none;
-		color: var(--muted);
-		font-size: 0.82rem;
-		text-decoration: underline;
-		cursor: pointer;
-	}
-	.muted {
-		color: var(--muted);
-		font-size: 0.88rem;
-	}
-	.map-wrap {
-		min-width: 0;
-		height: 100%;
-	}
-	.grabber {
-		display: none;
-	}
-
-	@media (max-width: 768px) {
-		.app {
-			grid-template-columns: 1fr;
-		}
-		.map-wrap {
-			position: fixed;
-			inset: 0;
-		}
-		.sidebar {
-			position: fixed;
-			left: 0;
-			right: 0;
-			bottom: 0;
-			height: 132px;
-			padding: 0 1rem 0.75rem;
-			border-right: 0;
-			border-radius: 18px 18px 0 0;
-			box-shadow: 0 -6px 24px rgb(15 30 40 / 0.22);
-			transition: height 0.25s ease;
-			overflow: hidden;
-		}
-		.sidebar[data-sheet='peek'] .rest {
-			display: none;
-		}
-		.sidebar[data-sheet='half'] {
-			height: 50dvh;
-		}
-		.sidebar[data-sheet='full'] {
-			height: 88dvh;
-		}
-		.grabber {
-			display: flex;
-			justify-content: center;
-			padding: 0.65rem 0 0.2rem;
-			margin: 0 -1rem;
-			cursor: grab;
-			touch-action: none;
-		}
-		.grabber span {
-			width: 42px;
-			height: 5px;
-			border-radius: 3px;
-			background: var(--border);
-		}
-		.scroll {
-			overscroll-behavior: contain;
-		}
-	}
-</style>
