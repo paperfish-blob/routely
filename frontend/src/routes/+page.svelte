@@ -102,7 +102,7 @@
 
 	async function addFromQuery(query: string) {
 		try {
-			const [first] = await api.geocode(query);
+			const [first] = await api.geocode(query, searchNear);
 			if (first) addCandidate(first);
 			else toasts.push(`No places found for “${query}”.`);
 		} catch {
@@ -118,6 +118,12 @@
 
 	const time = $derived(itinerary.totalSeconds === null ? null : durationParts(itinerary.totalSeconds));
 	const canSuggest = $derived(itinerary.stops.length >= 3);
+
+	/** Bias place search toward the end of the route, so "Union Square" means the one near your trip. */
+	const searchNear = $derived.by(() => {
+		const last = itinerary.stops.at(-1);
+		return last ? { lat: last.lat, lng: last.lng } : null;
+	});
 
 	function onWindowKey(e: KeyboardEvent) {
 		if (e.key !== 'Escape') return;
@@ -135,7 +141,7 @@
 				<Logo />
 				<ItineraryName value={itinerary.name} onchange={(v) => itinerary.setName(v)} />
 				{#if itinerary.loaded && itinerary.stops.length > 0}
-					<SearchBox disabled={!itinerary.canAdd()} onselect={addCandidate} placeholder="Search for a place" />
+					<SearchBox disabled={!itinerary.canAdd()} onselect={addCandidate} near={searchNear} placeholder="Search for a place" />
 				{/if}
 			</div>
 
@@ -155,7 +161,7 @@
 			{/if}
 		</aside>
 	{:else}
-		<SearchBox variant="float" disabled={!itinerary.canAdd()} onselect={addCandidate} />
+		<SearchBox variant="float" disabled={!itinerary.canAdd()} onselect={addCandidate} near={searchNear} />
 	{/if}
 
 	<MapView

@@ -13,6 +13,8 @@
 		onfocus?: () => void;
 		/** Focus the input when mounted (empty state). */
 		autofocus?: boolean;
+		/** Where the trip is: matches near this point are suggested first. */
+		near?: { lat: number; lng: number } | null;
 	}
 
 	let {
@@ -21,7 +23,8 @@
 		disabled = false,
 		placeholder = variant === 'float' ? 'Search places to add' : 'Search a city, landmark or address',
 		onfocus,
-		autofocus = false
+		autofocus = false,
+		near = null
 	}: Props = $props();
 
 	const MIN_CHARS = 3;
@@ -48,13 +51,14 @@
 			rateLimited = false;
 			return;
 		}
+		const hint = near ? { lat: near.lat, lng: near.lng } : null;
 		loading = true;
 		failure = null;
 		rateLimited = false;
 		const controller = new AbortController();
 		const timer = setTimeout(async () => {
 			try {
-				results = await api.geocode(q, controller.signal);
+				results = await api.geocode(q, hint, controller.signal);
 				active = 0;
 				searched = true;
 				open = true;

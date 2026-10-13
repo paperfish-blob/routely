@@ -83,7 +83,7 @@ All endpoints are stateless. Stops are `{id, name, lat, lng}`; `lat` ∈ [-90, 9
 | Endpoint | Body / query | Returns |
 | --- | --- | --- |
 | `GET /health` | | `{status, version}` |
-| `GET /geocode?q=` | `q` (1–200 chars) | up to 5 `{display_name, lat, lng}` |
+| `GET /geocode?q=` | `q` (1–200 chars), optional `near_lat` + `near_lng` (location hint) | up to 5 `{display_name, lat, lng}`; with a hint, matches within 150 km come first (closest first) |
 | `POST /distances` | `stops`, optional `cluster_threshold_km` | `matrix_km`, per-leg `legs`, `total_km`, `nearest` neighbour per stop, `clusters` (single-linkage; singletons included) |
 | `POST /route` | `stops`, `mode`: `driving` \| `walking` | GeoJSON `geometry`, `distance_km`, `duration_s`, `legs`, `fallback`, `fallback_reason` |
 | `POST /optimize` | `stops`, optional `start_id` | suggested `order` of ids, `original_total_km`, `new_total_km`, `km_saved` |
@@ -95,6 +95,8 @@ curl -s -X POST localhost:8001/distances -H 'content-type: application/json' \
 ```
 
 Behaviour worth knowing:
+
+- **Search is biased toward your trip.** The app sends the last stop's location as `near_lat`/`near_lng`, so "Union Square" while planning San Francisco finds San Francisco's first. The backend asks Nominatim for a wider candidate set around the hint (a soft `viewbox`, not a hard filter) and re-ranks by distance; results are cached per 1° area.
 
 - **Fallback:** if OSRM is unreachable, errors, or finds no route, `/route` returns straight lines with `fallback: true` (and a `fallback_reason`). Durations in that case are rough estimates (50 km/h driving, 5 km/h walking). The UI flags this.
 - **Optimizer:** nearest-neighbour construction followed by 2-opt, over the open path (no return to the start). Without `start_id` every stop is tried as the start. It never returns an order worse than the current one, unless `start_id` forces a different first stop.

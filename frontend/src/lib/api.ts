@@ -59,11 +59,18 @@ function post<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> 
 const wire = (stops: Stop[]) => stops.map(({ id, name, lat, lng }) => ({ id, name, lat, lng }));
 
 export const api = {
-	async geocode(q: string, signal?: AbortSignal): Promise<GeocodeCandidate[]> {
-		const res = await request<{ results: GeocodeCandidate[] }>(
-			`/geocode?q=${encodeURIComponent(q)}`,
-			{ signal }
-		);
+	/** `near` is a location hint: results close to it are ranked first. */
+	async geocode(
+		q: string,
+		near?: { lat: number; lng: number } | null,
+		signal?: AbortSignal
+	): Promise<GeocodeCandidate[]> {
+		const params = new URLSearchParams({ q });
+		if (near) {
+			params.set('near_lat', String(near.lat));
+			params.set('near_lng', String(near.lng));
+		}
+		const res = await request<{ results: GeocodeCandidate[] }>(`/geocode?${params}`, { signal });
 		return res.results;
 	},
 	distances(
