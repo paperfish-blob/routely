@@ -164,7 +164,7 @@ async def test_route_endpoint_reports_fallback(app: FastAPI, client: httpx.Async
         {"stops": [PARIS], "mode": "driving"},
         {"stops": [PARIS, LYON], "mode": "flying"},
         {"stops": [PARIS, {**LYON, "lat": 99}], "mode": "driving"},
-        {"stops": [{**PARIS, "id": str(i)} for i in range(26)], "mode": "driving"},
+        {"stops": [{**PARIS, "id": str(i)} for i in range(28)], "mode": "driving"},
     ],
 )
 async def test_route_validation(client: httpx.AsyncClient, payload: dict) -> None:

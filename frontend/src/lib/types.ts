@@ -9,14 +9,40 @@ export interface Stop {
 
 export type RouteMode = 'straight' | 'driving' | 'walking';
 
-/** The persisted shape. Bump `version` when it changes. */
-export interface Itinerary {
-	version: 1;
+/** Where a day begins. `chain` = where the previous day ended (the usual overnight case). */
+export type StartPoint = { kind: 'chain' } | { kind: 'place'; place: Stop } | { kind: 'none' };
+
+/** Where a day finishes. `start` = back where it began (a round trip); `open` = at the last stop. */
+export type EndPoint = { kind: 'start' } | { kind: 'place'; place: Stop } | { kind: 'open' };
+
+/** One travel day. */
+export interface Day {
+	id: string;
+	/** Optional name, e.g. "Kuala Lumpur". */
+	title: string;
+	start: StartPoint;
+	end: EndPoint;
 	stops: Stop[];
+}
+
+/** A day's start and end after following chains; null when there is none. */
+export interface ResolvedEnds {
+	start: Stop | null;
+	end: Stop | null;
+}
+
+/** The persisted shape. Bump `version` when it changes (v1: flat `stops`; v2: one `base` per day). */
+export interface Itinerary {
+	version: 3;
+	days: Day[];
 	routeMode: RouteMode;
 	/** Optional so itineraries saved before this field existed still load. */
 	name?: string;
 	clusterThresholdKm?: number;
+	/** ISO date (YYYY-MM-DD) of Day 1. Dates of later days follow from it. Absent = no dates. */
+	startDate?: string;
+	/** Days have a fixed start and end (e.g. a hotel). Default true. */
+	useBase?: boolean;
 }
 
 export interface GeocodeCandidate {

@@ -91,7 +91,12 @@ export const api = {
 	): Promise<RouteResponse> {
 		return post('/route', { stops: wire(stops), mode }, signal);
 	},
-	optimize(stops: Stop[], startId?: string, signal?: AbortSignal): Promise<OptimizeResponse> {
-		return post('/optimize', { stops: wire(stops), start_id: startId ?? null }, signal);
+	optimize(
+		stops: Stop[],
+		startId?: string,
+		endId?: string,
+		signal?: AbortSignal
+	): Promise<OptimizeResponse> {
+		return post('/optimize', { stops: wire(stops), start_id: startId ?? null, end_id: endId ?? null }, signal);
 	}
 };

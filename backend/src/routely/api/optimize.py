@@ -13,7 +13,7 @@ router = APIRouter()
 async def optimize(
     body: OptimizeRequest, optimizer: Annotated[OptimizerService, Depends(get_optimizer)]
 ) -> OptimizeResponse:
-    result = optimizer.optimize(body.stops, body.start_id)
+    result = optimizer.optimize(body.stops, body.start_id, body.end_id)
     result.original_total_km = round(result.original_total_km, 3)
     result.new_total_km = round(result.new_total_km, 3)
     result.km_saved = round(result.original_total_km - result.new_total_km, 3)

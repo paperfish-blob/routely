@@ -31,14 +31,15 @@ frontend/src/routes/design/   the living style guide
 | Ink | `--ink` `--ink-2` `--ink-3` | Primary, secondary, tertiary text |
 | Brand | `--primary` (+`-soft`, `--on-primary`) `--accent` (+`-soft`, `-line`, `-route`, `--on-accent`) | Teal = primary actions and the current route; amber = "suggest"/optimisation |
 | Clusters | `--cA` … `--cD` (+`-fg`, `-soft`) | Four colours **each with a shape** (circle, rounded, hexagon, square). Never rely on colour alone |
+| Days | `--day1` `--day2` `--day3` (+`-soft`, `--day2-route`) | Identity of Day 1/2/3, cycling every three. Always paired with a `D1` tag/number, never colour alone. Shown only where clusters are not (all-days view, day tags) |
 | Status | `--danger` `--ok` (+`-soft`) `--focus` | Errors always pair colour with an icon and text |
 | Type sizes | `--fs-nano` … `--fs-display` | 10 / 11 / 11.5 / 12 / 12.5 / 13 / 13.5 / 14 / 15 / 17 / 18 / 19 / 20 / 21 / 22 / 26 / 28 px |
 | Weights | `--fw-regular` … `--fw-extrabold` | 400–800; Plus Jakarta Sans only |
 | Radius | `--r-xs` … `--r-3xl`, `--r-pill` | 4 / 6 / 8 / 9 / 10 / 12 / 16 / 20 / 999 |
 | Spacing | `--sp-2` … `--sp-28` | The number is the px value |
-| Sizes | `--h-btn` `--h-field` `--h-stop` `--h-leg` `--w-sidebar` `--w-panel` … | 44px buttons/touch targets, 64px stop row, 36px leg, 400px sidebar |
+| Sizes | `--h-btn` `--h-field` `--h-stop` `--h-leg` `--h-day-tab` `--h-srow` `--h-base-row` `--w-sidebar` `--w-panel` `--w-menu` `--w-dialog` … | 44px buttons/touch targets, 64px stop row, 36px leg, 56px day tab, 400px sidebar |
 | Shadows | `--shadow` `--shadow-sm` `--shadow-side` `--shadow-sheet` `--shadow-marker` | |
-| Layers | `--z-map` … `--z-toast` | |
+| Layers | `--z-map` … `--z-menu` `--z-dialog` `--z-toast` | |
 
 Numbers (distances, durations, counts) always use `.num` (tabular figures). Distances show one decimal (`13.6 km`), durations read `1 h 24 min`.
 
@@ -62,6 +63,15 @@ Numbers (distances, durations, counts) always use `.num` (tabular figures). Dist
 | MapToolbar, MapControls, Marker, MarkerPopup | `components/MapToolbar.svelte`, `MapControls.svelte`, `MapView.svelte` |
 | SuggestOrderPanel, MapLegend | `components/SuggestOrderPanel.svelte`, `MapLegend.svelte` |
 | BottomSheet (collapsed 112px / half 430px / full) | `components/BottomSheet.svelte` |
+| Menu / MenuItem / MenuHeading (anchored popover; radio, checkbox-switch and danger items) | `ui/Menu.svelte`, `ui/MenuItem.svelte`, `ui/MenuHeading.svelte` |
+| Dialog (scrim, focus trap, Esc) and option rows (`.opt`) | `ui/Dialog.svelte` |
+| DayTabs (desktop) · DayChips (mobile) | `components/DayTabs.svelte`, `components/DayChips.svelte` |
+| DayHeader (title + day menu) | `components/DayHeader.svelte` |
+| AllDaysView (day sections, overnight connectors, trip totals) | `components/AllDaysView.svelte` |
+| EndpointRow (a day's START / END, with its menu) | `components/EndpointRow.svelte` |
+| StartEndCard (editor: where a day starts and ends) · RouteEndsRow (mobile) | `components/StartEndCard.svelte`, `components/RouteEndsRow.svelte` |
+| AddDayDialog · TripDatesDialog · TripOptions | `components/AddDayDialog.svelte`, `TripDatesDialog.svelte`, `TripOptions.svelte` |
+| "Adding to Day N" chip | `components/SearchBox.svelte` (`target` prop) |
 
 ## Building new UI
 
@@ -71,6 +81,24 @@ Numbers (distances, durations, counts) always use `.num` (tabular figures). Dist
 4. **New icon?** Same style (24×24 viewBox, 1.8 stroke, round caps), add to `ui/icons.ts`.
 5. **Map colours** can't use CSS variables: read them through `lib/map/theme.ts`.
 6. Prefer `<style>` blocks only for layout glue that uses tokens; shared look belongs in `components.css`.
+
+## Days
+
+A trip is a list of days (`Itinerary.days`). The UI always shows **one day at a time** (tabs/chips) or **all days** (overview). Rules to keep when extending it:
+
+- **Where a new stop goes is always visible.** With more than one day, the search field shows an "Adding to Day N" chip; adding to another day switches the view to it.
+- **Other days stay visible but quiet** (dimmed markers and dashed grey routes, with `D2` tags) so you can plan around them. The all-days view colours each day (`--day1…3`) and hides cluster letters.
+- **Every day has a start and an end** (when "Fixed start and end points" is on, the default). They are not stops: they are never in the reorderable list, and the optimiser pins them.
+  - **Start** is one of: where the previous day ended (the default, a *chain*), a chosen place, or none.
+  - **End** is one of: back at the start (the default, a round trip), a chosen place, or open (no fixed end, finish at the last stop).
+  - Labels say what is true: a round trip is one **START & END** row plus **BACK AT** at the bottom; different places are **START** and **END**; the flag icon marks an end, a plane marks an airport.
+  - The first day's start and the last day's end are set like any other (an airport, say); there are no special cases in the model.
+  - Changing a day's end moves the next day's chained start, and the end row says "Day N starts here".
+  - On mobile start and end collapse into one tappable route row (`START → END`) that opens the same editor as a dialog.
+- **Overnight transfers** (dashed pill, dotted map line) connect the end of one day to the start of the next, and only when those are different places (a chained start never needs one: the all-days view shows a link chip instead).
+- **Dates are optional.** One trip start date; each day's date is derived from its position. Without dates, tabs show the stop count.
+- **Every destructive day/stop action is undoable** (toast with Undo): delete day, clear stops, remove/move/copy a stop.
+- **Optimising is per day** and pins the start first and the end last.
 
 ## Behavioural conventions (from the design)
 
@@ -86,5 +114,6 @@ Numbers (distances, durations, counts) always use `.num` (tabular figures). Dist
 - The artboard's "placeholder basemap" is replaced by OpenStreetMap tiles with the required attribution.
 - Suggest-order copy says "shortest straight-line distance" (the optimiser is haversine-based), and a "Keep first stop as the start" checkbox is available in the panel.
 - A cluster-distance selector (5 / 15 / 30 / 60 km) sits in the summary card; the design has none.
+- Multi-day (tabs, all-days overview, overnight transfers, day menus, add-day dialog, base rows) follows the separate "Routely · Multi-day itineraries" mock, not `Routely.html`. The start/end behaviour follows boards 8–12 of that mock.
 - The suggest panel becomes a bottom overlay on mobile (no artboard exists).
 - There is no dark theme.

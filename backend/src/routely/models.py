@@ -4,7 +4,8 @@ from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, Field, model_validator
 
-MAX_STOPS = 25
+# 25 stops in a day plus a fixed start and a fixed end.
+MAX_STOPS = 27
 MIN_STOPS = 2
 
 
@@ -101,11 +102,18 @@ class RouteResponse(BaseModel):
 class OptimizeRequest(StopsRequest):
     # If set, this stop stays first and the rest are reordered after it.
     start_id: str | None = None
+    # If set, this stop stays last (e.g. the hotel you return to).
+    end_id: str | None = None
 
     @model_validator(mode="after")
-    def _start_exists(self) -> Self:
-        if self.start_id is not None and self.start_id not in {s.id for s in self.stops}:
+    def _ends_exist(self) -> Self:
+        ids = {s.id for s in self.stops}
+        if self.start_id is not None and self.start_id not in ids:
             raise ValueError("start_id must match one of the stops")
+        if self.end_id is not None and self.end_id not in ids:
+            raise ValueError("end_id must match one of the stops")
+        if self.start_id is not None and self.start_id == self.end_id:
+            raise ValueError("start_id and end_id must be different stops")
         return self
 
 

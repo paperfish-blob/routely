@@ -4,7 +4,7 @@ Enter several places, see them on a map as an ordered itinerary, and view the di
 
 - **No database, no Docker, no auth.** Everything runs locally with plain commands.
 - **The backend is stateless.** Every request carries the stops it needs; nothing is stored server-side.
-- **The frontend owns the itinerary** and persists it in `localStorage` (key prefix `routely:`).
+- **The frontend owns the itinerary** and persists it in `localStorage` (key prefix `routely:`). A trip is a list of **days**, each with a start point, an end point (a hotel, an airport, the same place or different ones) and its stops; trip dates are optional. Older single-list saves migrate automatically.
 - **Supabase-ready.** All persistence goes through one `ItineraryStore` interface, so Postgres/Auth can be added by swapping one implementation (see [Adding Supabase later](#adding-supabase-later)).
 
 ## Design
@@ -78,7 +78,7 @@ Environment variables, all prefixed `ROUTELY_`; see [`backend/.env.example`](bac
 
 ## API
 
-All endpoints are stateless. Stops are `{id, name, lat, lng}`; `lat` ∈ [-90, 90], `lng` ∈ [-180, 180], ids unique, 2–25 stops. Errors are always `{"error": {"code", "message", "details?"}}` (`422 validation_error`, `429 rate_limited` when the geocoder throttles, `502 upstream_error`, ...). Interactive docs at http://localhost:8001/docs.
+All endpoints are stateless. Stops are `{id, name, lat, lng}`; `lat` ∈ [-90, 90], `lng` ∈ [-180, 180], ids unique, 2–27 stops (25 per day plus a fixed start and end). Errors are always `{"error": {"code", "message", "details?"}}` (`422 validation_error`, `429 rate_limited` when the geocoder throttles, `502 upstream_error`, ...). Interactive docs at http://localhost:8001/docs.
 
 | Endpoint | Body / query | Returns |
 | --- | --- | --- |
@@ -86,7 +86,7 @@ All endpoints are stateless. Stops are `{id, name, lat, lng}`; `lat` ∈ [-90, 9
 | `GET /geocode?q=` | `q` (1–200 chars), optional `near_lat` + `near_lng` (location hint) | up to 5 `{display_name, lat, lng}`; with a hint, matches within 150 km come first (closest first) |
 | `POST /distances` | `stops`, optional `cluster_threshold_km` | `matrix_km`, per-leg `legs`, `total_km`, `nearest` neighbour per stop, `clusters` (single-linkage; singletons included) |
 | `POST /route` | `stops`, `mode`: `driving` \| `walking` | GeoJSON `geometry`, `distance_km`, `duration_s`, `legs`, `fallback`, `fallback_reason` |
-| `POST /optimize` | `stops`, optional `start_id` | suggested `order` of ids, `original_total_km`, `new_total_km`, `km_saved` |
+| `POST /optimize` | `stops`, optional `start_id` and `end_id` (pin the first / last stop) | suggested `order` of ids, `original_total_km`, `new_total_km`, `km_saved` |
 
 ```bash
 curl -s localhost:8001/geocode?q=Eiffel+Tower
@@ -99,7 +99,7 @@ Behaviour worth knowing:
 - **Search is biased toward your trip.** The app sends the last stop's location as `near_lat`/`near_lng`, so "Union Square" while planning San Francisco finds San Francisco's first. The backend asks Nominatim for a wider candidate set around the hint (a soft `viewbox`, not a hard filter) and re-ranks by distance; results are cached per 1° area.
 
 - **Fallback:** if OSRM is unreachable, errors, or finds no route, `/route` returns straight lines with `fallback: true` (and a `fallback_reason`). Durations in that case are rough estimates (50 km/h driving, 5 km/h walking). The UI flags this.
-- **Optimizer:** nearest-neighbour construction followed by 2-opt, over the open path (no return to the start). Without `start_id` every stop is tried as the start. It never returns an order worse than the current one, unless `start_id` forces a different first stop.
+- **Optimizer:** nearest-neighbour construction followed by 2-opt, over the open path. `start_id` / `end_id` pin the first / last stop (a hotel loop pins both, with the same place under two ids). Without `start_id` every stop is tried as the start. It never returns an order worse than the current one, unless a pin forces a different position.
 - **Distances** are great-circle (haversine) kilometres; road distances come from `/route`.
 
 ## Architecture notes

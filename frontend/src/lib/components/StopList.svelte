@@ -1,16 +1,28 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { tick, type Snippet } from 'svelte';
 	import { moveItem } from '#lib/format.ts';
 	import { sortable } from '#lib/sortable.ts';
 	import type { ItineraryState } from '#lib/state/itinerary.svelte.ts';
 	import { Skeleton } from '#lib/ui/index.ts';
+	import EndpointRow from './EndpointRow.svelte';
 	import LegConnector from './LegConnector.svelte';
+	import StartEndCard from './StartEndCard.svelte';
 	import StopRow from './StopRow.svelte';
 
-	let { itinerary }: { itinerary: ItineraryState } = $props();
+	/** `compact` (mobile) hides the start/end rows; the route row above the list stands in for them. */
+	let { itinerary, empty, compact = false }: { itinerary: ItineraryState; empty?: Snippet; compact?: boolean } = $props();
 
 	let listEl = $state<HTMLDivElement>();
-	const ids = $derived(itinerary.stops.map((s) => s.id));
+	const day = $derived(itinerary.activeDay);
+	const stops = $derived(itinerary.stops);
+	const ids = $derived(stops.map((s) => s.id));
+	const ends = $derived(day ? itinerary.endsOf(day) : null);
+	/** Start/end rows appear once there is something to anchor: an end point, a first stop, or several days. */
+	const withEnds = $derived(
+		itinerary.useBase && !!day && !compact && (!!ends?.start || !!ends?.end || stops.length > 0 || itinerary.multiDay)
+	);
+	const editing = $derived(!!day && itinerary.endsEditor?.dayId === day.id);
+	const shortName = (n: string) => (n.length > 14 ? `${n.slice(0, 13)}…` : n);
 
 	function move(from: number, to: number) {
 		itinerary.reorder(moveItem(ids, from, to));
@@ -49,33 +61,59 @@
 			{#if n === 0}<div class="leg"><Skeleton width="112px" height="22px" radius="var(--r-pill)" /></div>{/if}
 		{/each}
 	</div>
-{:else}
+{:else if day}
 	<div
 		class="stops"
 		role="list"
-		aria-label="Itinerary stops"
+		aria-label="Day {itinerary.dayIndex(day.id) + 1} stops"
 		data-name="StopList"
+		data-day-id={day.id}
 		bind:this={listEl}
-		use:sortable={{ item: '.stop', handle: '.grip', onMove: move }}
+		use:sortable={{
+			item: '[data-id]',
+			handle: '.grip',
+			onMove: move,
+			onHoverDay: (id) => (itinerary.dropDayId = id),
+			onDropDay: (old, dayId) => itinerary.moveStop(ids[old], dayId)
+		}}
 	>
-		{#each itinerary.stops as stop, i (stop.id)}
+		{#if withEnds}
+			{#if editing}
+				<StartEndCard {itinerary} dayId={day.id} focus={itinerary.endsEditor?.focus} onclose={() => itinerary.closeEndsEditor()} />
+			{:else}
+				<EndpointRow {itinerary} {day} position="start" />
+			{/if}
+		{/if}
+		{#if stops.length > 0 && ends?.start}
+			{@const lead = itinerary.startLegIn(day)}
+			{#if lead}<LegConnector km={lead.km} seconds={lead.seconds} approx={lead.approx} mode={itinerary.effectiveMode} note={compact ? `from ${shortName(ends.start.name)}` : undefined} />{/if}
+		{/if}
+
+		{#each stops as stop, i (stop.id)}
 			<StopRow
 				{stop}
 				index={i}
 				cluster={itinerary.styleOf(stop.id)}
 				selected={stop.id === itinerary.selectedId}
+				{itinerary}
 				onselect={() => itinerary.select(stop.id === itinerary.selectedId ? null : stop.id)}
-				onremove={() => itinerary.removeStop(stop.id)}
 				onkeymove={(e) => onGripKey(e, i, stop.id)}
 			/>
-			{#if i < itinerary.stops.length - 1}
+			{#if i < stops.length - 1 || ends?.end}
 				{@const leg = itinerary.legAfter(stop.id)}
+				{@const last = i === stops.length - 1}
 				{#if leg}
-					<LegConnector km={leg.km} seconds={leg.seconds} approx={leg.approx} mode={itinerary.effectiveMode} />
+					<LegConnector km={leg.km} seconds={leg.seconds} approx={leg.approx} mode={itinerary.effectiveMode} note={compact && last && ends?.end ? `to ${shortName(ends.end.name)}` : undefined} />
 				{:else}
 					<div class="leg"><Skeleton width="112px" height="22px" radius="var(--r-pill)" /></div>
 				{/if}
 			{/if}
 		{/each}
+
+		{#if withEnds && stops.length > 0 && !editing && (ends?.end || day.end.kind === 'open')}
+			<EndpointRow {itinerary} {day} position="end" />
+		{/if}
+
+		{#if stops.length === 0}{@render empty?.()}{/if}
 	</div>
 {/if}

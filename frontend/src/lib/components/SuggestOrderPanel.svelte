@@ -7,6 +7,9 @@
 	let { itinerary }: { itinerary: ItineraryState } = $props();
 
 	const proposal = $derived(itinerary.activeProposal);
+	const ends = $derived(itinerary.activeDay ? itinerary.endsOf(itinerary.activeDay) : { start: null, end: null });
+	const startName = $derived(ends.start?.name ?? '');
+	const endName = $derived(ends.end?.name ?? '');
 	const changes = $derived(itinerary.proposalChangesOrder);
 	const stops = $derived(itinerary.stops);
 	const nameOf = (id: string) => itinerary.stopById(id)?.name ?? '?';
@@ -49,7 +52,9 @@
 			<h2 id="sug-title">Suggested order</h2>
 			<p>
 				Shortest straight-line distance across all {stops.length} stops.
-				{#if proposal && changes && suggestedOrder[0] !== stops[0]?.id}
+				{#if itinerary.hasStart || itinerary.hasEnd}
+					{#if itinerary.hasStart}Starts from {startName}{#if itinerary.hasEnd}{' and ends at '}{endName}{/if}.{:else}Ends at {endName}.{/if}
+				{:else if proposal && changes && suggestedOrder[0] !== stops[0]?.id}
 					The start moves to {nameOf(suggestedOrder[0])}.
 				{/if}
 			</p>
@@ -57,6 +62,7 @@
 		<IconButton label="Close preview" icon="close" onclick={() => itinerary.closeSuggest()} />
 	</div>
 
+	{#if !itinerary.hasStart}
 	<div class="panel-sec">
 		<label>
 			<input
@@ -68,6 +74,7 @@
 			Keep {stops[0] ? stops[0].name : 'the first stop'} as the start
 		</label>
 	</div>
+	{/if}
 
 	{#if itinerary.optimizing}
 		<div role="status" aria-label="Finding a better order" style="padding: var(--sp-18) var(--sp-22); display: flex; flex-direction: column; gap: var(--sp-12)">

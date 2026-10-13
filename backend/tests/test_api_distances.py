@@ -41,7 +41,7 @@ async def test_custom_cluster_threshold(client: httpx.AsyncClient) -> None:
         [PARIS, {**LONDON, "id": "p"}],  # duplicate id
         [PARIS, {**LONDON, "id": ""}],
         [PARIS, {"id": "x", "name": "x"}],  # missing coords
-        [{**PARIS, "id": str(i)} for i in range(26)],
+        [{**PARIS, "id": str(i)} for i in range(28)],
     ],
 )
 async def test_distances_validation(client: httpx.AsyncClient, stops: list[dict]) -> None:

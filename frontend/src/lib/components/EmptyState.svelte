@@ -2,11 +2,21 @@
 	import type { Snippet } from 'svelte';
 	import { Icon } from '#lib/ui/index.ts';
 
+	interface Props {
+		search: Snippet;
+		examples?: string[];
+		ontry?: (query: string) => void;
+		title?: string;
+		text?: string;
+	}
+
 	let {
 		search,
-		examples,
-		ontry
-	}: { search: Snippet; examples: string[]; ontry: (query: string) => void } = $props();
+		examples = [],
+		ontry,
+		title = 'Where are you headed?',
+		text = 'Add your first stop to see it on the map, then keep adding to build the route.'
+	}: Props = $props();
 </script>
 
 <div class="empty" data-name="EmptyState">
@@ -23,15 +33,17 @@
 		<circle cx="142" cy="82" r="11" style="fill: var(--accent); stroke: var(--surface); stroke-width: 3" />
 		<circle cx="200" cy="52" r="11" style="fill: var(--cB); stroke: var(--surface); stroke-width: 3" />
 	</svg>
-	<h1>Where are you headed?</h1>
-	<p>Add your first stop to see it on the map, then keep adding to build the route.</p>
+	<h1>{title}</h1>
+	<p>{text}</p>
 	<div style="width: 100%; margin-top: var(--sp-12); text-align: left">{@render search()}</div>
-	<div class="exchips" data-name="ExampleChips">
-		<span style="font-size: var(--fs-small); font-weight: var(--fw-bold); color: var(--ink-2)">Try:</span>
-		{#each examples as place (place)}
-			<button type="button" class="exchip" onclick={() => ontry(place)}>
-				<Icon name="pin" />{place}
-			</button>
-		{/each}
-	</div>
+	{#if examples.length > 0}
+		<div class="exchips" data-name="ExampleChips">
+			<span style="font-size: var(--fs-small); font-weight: var(--fw-bold); color: var(--ink-2)">Try:</span>
+			{#each examples as place (place)}
+				<button type="button" class="exchip" onclick={() => ontry?.(place)}>
+					<Icon name="pin" />{place}
+				</button>
+			{/each}
+		</div>
+	{/if}
 </div>

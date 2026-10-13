@@ -307,3 +307,85 @@ input[type='search']::-webkit-search-decoration {
 	padding-left: var(--sp-16);
 	padding-right: var(--sp-16);
 }
+
+/* A menu anchored to a trigger is positioned in viewport coordinates. */
+.menu.fixed {
+	position: fixed;
+}
+
+/* Inline editor for a day's base (hotel). */
+.base-edit {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--sp-8);
+	margin-bottom: var(--sp-8);
+}
+.base-edit > .search {
+	flex: 1;
+	min-width: 0;
+}
+.daysec-open {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	gap: var(--sp-10);
+	height: 100%;
+	min-width: 0;
+	border: 0;
+	background: none;
+	text-align: left;
+	padding: 0;
+}
+.srow.base .nm {
+	font-weight: var(--fw-semibold);
+	color: var(--ink-2);
+}
+.srow.base .base-ico {
+	width: 22px;
+	height: 22px;
+	border-radius: var(--r-md);
+}
+.srow.base .base-ico .ico {
+	width: 14px;
+	height: 14px;
+}
+.is-all .stops {
+	padding-top: var(--sp-8);
+}
+
+.legchip.dashed {
+	border-style: dashed;
+}
+
+.side-scroll {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	padding-top: var(--sp-10);
+}
+.brand-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--sp-8);
+}
+.meta-row {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: var(--sp-4);
+	margin-top: -4px;
+}
+.meta-row .meta {
+	margin-top: 0;
+}
+.sheet-head .ibtn {
+	flex: none;
+}
+
+/* With the legend showing, the scale bar sits beside it instead of underneath. */
+.legend ~ .scalebar {
+	left: calc(var(--w-popup) + var(--sp-24));
+}

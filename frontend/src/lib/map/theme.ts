@@ -12,6 +12,9 @@ export interface MapTheme {
 	accentRoute: string;
 	routeDash: string;
 	clusters: Record<'cA' | 'cB' | 'cC' | 'cD', string>;
+	/** Route colour per day identity (day1, day2, day3). */
+	days: [string, string, string];
+	grab: string;
 }
 
 export function readMapTheme(): MapTheme {
@@ -20,6 +23,8 @@ export function readMapTheme(): MapTheme {
 		primary: token('--primary'),
 		accentRoute: token('--accent-route'),
 		routeDash: token('--route-dash'),
-		clusters: { cA: token('--cA'), cB: token('--cB'), cC: token('--cC'), cD: token('--cD') }
+		clusters: { cA: token('--cA'), cB: token('--cB'), cC: token('--cC'), cD: token('--cD') },
+		days: [token('--day1'), token('--day2-route'), token('--day3')],
+		grab: token('--grab')
 	};
 }

@@ -16,6 +16,9 @@
 		SegmentedControl,
 		Skeleton,
 		Toast,
+		Menu,
+		MenuHeading,
+		MenuItem,
 		type IconName
 	} from '#lib/ui/index.ts';
 	import type { RouteMode } from '#lib/types.ts';
@@ -220,6 +223,67 @@
 						<div><Icon name={name as IconName} /><span class="cap">{name}</span></div>
 					{/each}
 				</div>
+			</section>
+		</div>
+
+		<div class="col">
+			<section class="card">
+				<h2 class="cs">DAYS: TABS, TAGS, CHIPS</h2>
+				<span class="cap">DAY TABS: DEFAULT · SELECTED · DROP TARGET · ADD</span>
+				<div class="row" style="flex-wrap: nowrap; overflow: hidden">
+					<button class="dtab day1"><b><i></i>Day 1</b><span>Sat 24 Oct</span></button>
+					<button class="dtab day2 sel"><b><i></i>Day 2</b><span>Sun 25 Oct</span></button>
+					<button class="dtab day3 drop"><b><i></i>Day 3</b><span>Mon 26 Oct</span></button>
+					<button class="dtab add"><Icon name="plus" size="sm" />Add day</button>
+				</div>
+				<span class="cap">DAY TAGS (three hues, cycling)</span>
+				<div class="row">
+					<span class="dtag day1">D1</span><span class="dtag day2">D2</span><span class="dtag day3">D3</span>
+					<span class="addto day2"><span class="dtag">D2</span>Day 2<Icon name="chevron-down" /></span>
+				</div>
+				<span class="cap">MOBILE DAY CHIPS</span>
+				<div class="row">
+					<button class="dchip"><Icon name="layers" size="sm" />All</button>
+					<button class="dchip day1 sel"><span class="dtag">D1</span>Sat 24</button>
+					<button class="dchip day2"><span class="dtag">D2</span>Sun 25</button>
+				</div>
+			</section>
+
+			<section class="card">
+				<h2 class="cs">START &amp; END ROWS</h2>
+				<span class="cap">ROUND TRIP (SAME PLACE)</span>
+				<div class="stop base"><span class="base-ico"><Icon name="home" /></span><div class="txt"><span class="cap">START &amp; END</span><span class="nm" style="font-size: var(--fs-body)">Hotel KL</span></div><IconButton label="Options" icon="more" /></div>
+				<div class="stop base"><span class="base-ico"><Icon name="home" /></span><div class="txt"><span class="cap">BACK AT</span><span class="nm" style="font-size: var(--fs-body)">Hotel KL</span></div><IconButton label="Options" icon="more" /></div>
+				<span class="cap">DIFFERENT START AND END</span>
+				<div class="stop base"><span class="base-ico"><Icon name="plane" /></span><div class="txt"><span class="cap">START</span><span class="nm" style="font-size: var(--fs-body)">KLIA Airport</span></div><span class="linkchip"><Icon name="link" />from Day 1</span><IconButton label="Options" icon="more" /></div>
+				<div class="stop base"><span class="base-ico end"><Icon name="flag" /></span><div class="txt"><span class="cap">END</span><span class="nm" style="font-size: var(--fs-body)">Hotel Pantai</span></div><span class="linkchip"><Icon name="link" />Day 2 starts here</span><IconButton label="Options" icon="more" /></div>
+				<span class="cap">OPEN END · NOT SET</span>
+				<div class="stop base open"><span class="base-ico" style="background: var(--ink-3)"><Icon name="ban" /></span><div class="txt"><span class="cap">END</span><span class="nm" style="font-size: var(--fs-small-2)">No fixed end · finishes at the last stop</span></div><IconButton label="Options" icon="more" /></div>
+				<div class="stop base unset"><span class="base-ico"><Icon name="home" /></span><div class="txt"><span class="cap">START &amp; END</span><span class="nm" style="font-size: var(--fs-small-2)">Where does Day 2 begin?</span></div><Button size="sm" variant="secondary">Set start</Button></div>
+			</section>
+
+			<section class="card">
+				<h2 class="cs">ALL-DAYS SECTION · OVERNIGHT</h2>
+				<div class="daysec day2" style="margin: 0">
+					<div class="daysec-h"><IconButton label="Collapse" icon="chevron-down" /><span class="dtag">D2</span><span class="t"><b>Putrajaya &amp; Port Dickson</b><span>Sun 25 Oct · 2 stops</span></span><span class="st num">63.4 km<br />58 min</span></div>
+					<div class="srow"><span class="badge sm day2">1</span><span class="nm">Putrajaya Lake</span><span class="km num">63.4 km</span></div>
+				</div>
+				<div class="xfer" style="margin: 0"><Pill dashed icon="car">Overnight · 57.9 km · 58 min</Pill></div>
+			</section>
+
+			<section class="card">
+				<h2 class="cs">MENU · DIALOG OPTION</h2>
+				<div class="menu" style="position: static; box-shadow: none; max-height: none">
+					<MenuHeading>MOVE KLCC TO</MenuHeading>
+					<MenuItem selected={true}><span class="dtag day1">D1</span>Day 1 · Sat 24 Oct</MenuItem>
+					<MenuItem hint="2 stops"><span class="dtag day2">D2</span>Day 2 · Sun 25 Oct</MenuItem>
+					<MenuItem icon="insert">New day after Day 1</MenuItem>
+					<div class="msep"></div>
+					<MenuItem icon="home" checked={true}>Start each day from a base</MenuItem>
+					<MenuItem icon="trash" danger hint="Undo available">Remove from trip</MenuItem>
+				</div>
+				<button class="opt" role="radio" aria-checked="true"><span class="ic"><Icon name="plus" /></span><span class="ot"><b>Day 4 · Tue 27 Oct</b><span>After your last day.</span></span><Icon name="check" /></button>
+				<button class="opt" role="radio" aria-checked="false"><span class="ic"><Icon name="copy" /></span><span class="ot"><b>Duplicate Day 2</b><span>Copy its 2 stops to a new day.</span></span></button>
 			</section>
 		</div>
 	</div>

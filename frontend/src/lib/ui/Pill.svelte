@@ -3,10 +3,10 @@
 	import Icon from './Icon.svelte';
 	import type { IconName } from './icons.ts';
 
-	let { icon, children }: { icon?: IconName; children: Snippet } = $props();
+	let { icon, dashed = false, children }: { icon?: IconName; dashed?: boolean; children: Snippet } = $props();
 </script>
 
-<span class="pill num">
+<span class="pill num {dashed ? 'dash' : ''}">
 	{#if icon}<Icon name={icon} />{/if}
 	{@render children()}
 </span>

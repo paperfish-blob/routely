@@ -1,19 +1,55 @@
 <script lang="ts" module>
 	import type { ClusterStyle } from '#lib/clusters.ts';
 
-	export type LineKind = 'road' | 'straight' | 'current';
+	/** What a marker looks like: cluster (day view), day (all-days view), dim (other days) or base (hotel). */
+	export type MarkerVariant = 'cluster' | 'day' | 'dim' | 'base';
+
+	export interface MapMarker {
+		id: string;
+		lat: number;
+		lng: number;
+		/** The number in the badge (position within its day). */
+		n: number;
+		name: string;
+		variant: MarkerVariant;
+		/** Colour class (cA…cD or day1…day3) and badge shape class. */
+		colorClass: string;
+		shapeClass: string;
+		/** Small tag at the badge's corner: the cluster letter or "D2". */
+		tag: string;
+		selected?: boolean;
+		/** For 'base' markers: which glyph to show, and whether it is the (different) end point. */
+		icon?: 'home' | 'flag' | 'plane';
+		endpoint?: boolean;
+		/** Show the name label next to the badge. */
+		label?: boolean;
+		aria: string;
+	}
+
+	export type LineKind = 'road' | 'straight' | 'current' | 'dim' | 'transfer';
 	export interface MapLine {
+		id: string;
 		coordinates: [number, number][];
 		kind: LineKind;
+		/** Use this day's colour (0–2) instead of the primary teal. */
+		dayIndex?: number;
+	}
+	export interface MapHull {
+		id: string;
+		colorClass: string;
+		points: [number, number][];
 	}
 	export interface LegChip {
 		id: string;
 		position: [number, number];
 		text: string;
+		dashed?: boolean;
 	}
 	export interface PopupInfo {
 		title: string;
-		cluster: ClusterStyle;
+		at: [number, number];
+		cluster?: ClusterStyle;
+		dayTag?: { text: string; colorClass: string };
 		subtitle: string;
 		/** Pre-formatted nearest-neighbour line parts. */
 		nearest: { name: string; distance: string } | null;
@@ -26,42 +62,40 @@
 	import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 	import type { Feature, FeatureCollection, LineString, Polygon } from 'geojson';
 	import { onMount, type Snippet } from 'svelte';
-	import type { ClusterInfo } from '#lib/clusters.ts';
 	import { clusterOutline, niceScale, paddingFor, type LngLat } from '#lib/map/geo.ts';
 	import { readMapTheme, type MapTheme } from '#lib/map/theme.ts';
 	import { toasts } from '#lib/state/toasts.svelte.ts';
-	import type { Stop } from '#lib/types.ts';
-	import { badgeClass, ICONS } from '#lib/ui/index.ts';
+	import { ICONS } from '#lib/ui/index.ts';
 
 	interface Props {
-		stops: Stop[];
-		/** Cluster style per stop id. */
-		styleOf: (id: string) => ClusterStyle;
-		clusters: ClusterInfo[];
-		selectedId: string | null;
-		line: MapLine | null;
-		/** The suggested route (amber), drawn above the current one while previewing. */
+		markers: MapMarker[];
+		lines: MapLine[];
+		hulls?: MapHull[];
+		/** The suggested route (amber), drawn above the others while previewing. */
 		suggestedLine?: LngLat[] | null;
 		legChips?: LegChip[];
 		/** Hide the scale bar (the suggest legend takes its place). */
 		showScale?: boolean;
 		popup: PopupInfo | null;
-		/** Padding (px) kept clear around fitted stops: room for overlays such as the toolbar, panel and sheet. */
+		/** Everything the view should frame, and a key that changes when the framing should be redone. */
+		fitPoints: LngLat[];
+		fitKey: string;
+		/** Padding (px) kept clear around fitted points: room for overlays such as the toolbar, panel and sheet. */
 		insets?: { top?: number; bottom?: number; left?: number; right?: number };
 		onselect: (id: string | null) => void;
 		children?: Snippet;
 	}
 
 	let {
-		stops,
-		styleOf,
-		clusters,
-		selectedId,
-		line,
+		markers,
+		lines,
+		hulls = [],
 		suggestedLine = null,
 		legChips = [],
 		showScale = true,
 		popup,
+		fitPoints,
+		fitKey,
 		insets = {},
 		onselect,
 		children
@@ -91,7 +125,7 @@
 	let ready = $state(false);
 	let scale = $state({ km: 0, px: 0 });
 	let locateMarker: maplibregl.Marker | undefined;
-	const markers = new Map<string, { marker: maplibregl.Marker; el: HTMLElement; label: HTMLElement }>();
+	const markerEls = new Map<string, { marker: maplibregl.Marker; el: HTMLElement; badge: HTMLElement; tag: HTMLElement; label: HTMLElement }>();
 	const chipMarkers = new Map<string, maplibregl.Marker>();
 	let popupMarker: maplibregl.Marker | undefined;
 	let theme: MapTheme;
@@ -104,10 +138,9 @@
 		map?.zoomOut();
 	}
 	export function fit(animate = true) {
-		if (!map || stops.length === 0) return;
+		if (!map || fitPoints.length === 0) return;
 		const bounds = new maplibregl.LngLatBounds();
-		for (const s of stops) bounds.extend([s.lng, s.lat]);
-		for (const c of line?.coordinates ?? []) bounds.extend(c);
+		for (const p of fitPoints) bounds.extend(p);
 		map.resize(); // the container may have just changed size (mobile sheet / rotation)
 		map.fitBounds(bounds, {
 			padding: {
@@ -143,53 +176,56 @@
 
 	// ── setup ───────────────────────────────────────────────────────────
 	onMount(() => {
-		{
-			// maplibre derives its default worker URL from import.meta.url, which breaks once
-			// Vite pre-bundles/hashes it. Point it at a worker bundled by Vite instead.
-			maplibregl.setWorkerUrl(workerUrl);
-			theme = readMapTheme();
-			map = new maplibregl.Map({
-				container,
-				style: OSM_STYLE,
-				center: [10, 30],
-				zoom: 1.5,
-				attributionControl: false
-			});
-			map.on('click', () => onselect(null));
-			map.on('move', updateScale);
-			map.on('moveend', placeLabels);
-			map.on('load', () => {
-				addLayers(map!);
-				updateScale();
-				ready = true;
-			});
-			return () => {
-				popupMarker?.remove();
-				locateMarker?.remove();
-				for (const { marker } of markers.values()) marker.remove();
-				for (const marker of chipMarkers.values()) marker.remove();
-				markers.clear();
-				chipMarkers.clear();
-				map?.remove();
-				map = undefined;
-				ready = false;
-			};
-		}
+		// maplibre derives its default worker URL from import.meta.url, which breaks once
+		// Vite pre-bundles/hashes it. Point it at a worker bundled by Vite instead.
+		maplibregl.setWorkerUrl(workerUrl);
+		theme = readMapTheme();
+		map = new maplibregl.Map({
+			container,
+			style: OSM_STYLE,
+			center: [10, 30],
+			zoom: 1.5,
+			attributionControl: false
+		});
+		map.on('click', () => onselect(null));
+		map.on('move', updateScale);
+		map.on('moveend', placeLabels);
+		map.on('load', () => {
+			addLayers(map!);
+			updateScale();
+			ready = true;
+		});
+		return () => {
+			popupMarker?.remove();
+			locateMarker?.remove();
+			for (const { marker } of markerEls.values()) marker.remove();
+			for (const marker of chipMarkers.values()) marker.remove();
+			markerEls.clear();
+			chipMarkers.clear();
+			map?.remove();
+			map = undefined;
+			ready = false;
+		};
 	});
 
 	function addLayers(m: maplibregl.Map) {
 		const cluster = ['match', ['get', 'c'], 'cA', theme.clusters.cA, 'cB', theme.clusters.cB, 'cC', theme.clusters.cC, theme.clusters.cD] as maplibregl.ExpressionSpecification;
 		const kindIs = (k: string): maplibregl.FilterSpecification => ['==', ['get', 'kind'], k];
+		const routed: maplibregl.FilterSpecification = ['in', ['get', 'kind'], ['literal', ['road', 'straight']]];
 		const round = { 'line-cap': 'round', 'line-join': 'round' } as const;
-		m.addSource('hulls', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-		m.addSource('line', { type: 'geojson', data: emptyLine() });
+		const color = ['get', 'color'] as maplibregl.ExpressionSpecification;
+		const empty: FeatureCollection = { type: 'FeatureCollection', features: [] };
+		m.addSource('hulls', { type: 'geojson', data: empty });
+		m.addSource('lines', { type: 'geojson', data: empty });
 		m.addSource('suggested', { type: 'geojson', data: emptyLine() });
 		m.addLayer({ id: 'hull-fill', type: 'fill', source: 'hulls', paint: { 'fill-color': cluster, 'fill-opacity': 0.1 } });
 		m.addLayer({ id: 'hull-line', type: 'line', source: 'hulls', layout: round, paint: { 'line-color': cluster, 'line-opacity': 0.8, 'line-width': 2, 'line-dasharray': [1, 3.5] } });
-		m.addLayer({ id: 'line-current', type: 'line', source: 'line', filter: kindIs('current'), layout: { 'line-join': 'round' }, paint: { 'line-color': theme.routeDash, 'line-width': 4, 'line-dasharray': [2.5, 2.25] } });
-		m.addLayer({ id: 'line-casing', type: 'line', source: 'line', filter: ['!=', ['get', 'kind'], 'current'], layout: round, paint: { 'line-color': theme.casing, 'line-width': 10 } });
-		m.addLayer({ id: 'line-road', type: 'line', source: 'line', filter: kindIs('road'), layout: round, paint: { 'line-color': theme.primary, 'line-width': 5 } });
-		m.addLayer({ id: 'line-straight', type: 'line', source: 'line', filter: kindIs('straight'), layout: round, paint: { 'line-color': theme.primary, 'line-width': 5, 'line-dasharray': [0.01, 2] } });
+		m.addLayer({ id: 'line-dim', type: 'line', source: 'lines', filter: kindIs('dim'), layout: { 'line-join': 'round' }, paint: { 'line-color': theme.routeDash, 'line-width': 4, 'line-opacity': 0.7, 'line-dasharray': [2.5, 2.25] } });
+		m.addLayer({ id: 'line-transfer', type: 'line', source: 'lines', filter: kindIs('transfer'), layout: round, paint: { 'line-color': theme.routeDash, 'line-width': 3, 'line-dasharray': [0.01, 3] } });
+		m.addLayer({ id: 'line-current', type: 'line', source: 'lines', filter: kindIs('current'), layout: { 'line-join': 'round' }, paint: { 'line-color': theme.routeDash, 'line-width': 4, 'line-dasharray': [2.5, 2.25] } });
+		m.addLayer({ id: 'line-casing', type: 'line', source: 'lines', filter: routed, layout: round, paint: { 'line-color': theme.casing, 'line-width': 10 } });
+		m.addLayer({ id: 'line-road', type: 'line', source: 'lines', filter: kindIs('road'), layout: round, paint: { 'line-color': color, 'line-width': 5 } });
+		m.addLayer({ id: 'line-straight', type: 'line', source: 'lines', filter: kindIs('straight'), layout: round, paint: { 'line-color': color, 'line-width': 5, 'line-dasharray': [0.01, 2] } });
 		m.addLayer({ id: 'suggested-casing', type: 'line', source: 'suggested', layout: round, paint: { 'line-color': theme.casing, 'line-width': 10 } });
 		m.addLayer({ id: 'suggested-line', type: 'line', source: 'suggested', layout: round, paint: { 'line-color': theme.accentRoute, 'line-width': 5 } });
 	}
@@ -204,95 +240,95 @@
 		return `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;
 	}
 
-	function makeMarker(stop: Stop) {
+	function makeMarker(m: MapMarker) {
 		const el = document.createElement('div');
-		el.className = 'mk';
-		el.innerHTML = '<button type="button" class="badge"></button><span class="lt"></span><span class="ml"></span>';
-		el.firstElementChild!.addEventListener('click', (e) => {
+		el.innerHTML = '<button type="button" class="badge"></button><span></span><span class="ml"></span>';
+		const badge = el.children[0] as HTMLElement;
+		const tag = el.children[1] as HTMLElement;
+		const label = el.children[2] as HTMLElement;
+		badge.addEventListener('click', (e) => {
 			e.stopPropagation(); // don't trigger the map's deselect-on-click
-			onselect(stop.id);
+			onselect(m.id);
 		});
-		const marker = new maplibregl.Marker({ element: el, anchor: 'center' }).setLngLat([stop.lng, stop.lat]).addTo(map!);
-		return { marker, el, label: el.querySelector<HTMLElement>('.ml')! };
+		const marker = new maplibregl.Marker({ element: el, anchor: 'center' }).setLngLat([m.lng, m.lat]).addTo(map!);
+		return { marker, el, badge, tag, label };
 	}
 
 	/** Put each name label on the side with more room, so they don't run off the map. */
 	function placeLabels() {
 		if (!map) return;
 		const width = map.getContainer().clientWidth;
-		for (const { marker, label } of markers.values()) {
-			const x = map.project(marker.getLngLat()).x;
-			label.classList.toggle('l', x > width * 0.6);
+		for (const { marker, label } of markerEls.values()) {
+			label.classList.toggle('l', map.project(marker.getLngLat()).x > width * 0.6);
 		}
 	}
 
 	$effect(() => {
 		if (!ready || !map) return;
-		const live = new Set(stops.map((s) => s.id));
-		for (const [id, { marker }] of markers) {
+		const live = new Set(markers.map((m) => m.id));
+		for (const [id, { marker }] of markerEls) {
 			if (!live.has(id)) {
 				marker.remove();
-				markers.delete(id);
+				markerEls.delete(id);
 			}
 		}
-		stops.forEach((stop, i) => {
-			let entry = markers.get(stop.id);
+		for (const m of markers) {
+			let entry = markerEls.get(m.id);
 			if (!entry) {
-				entry = makeMarker(stop);
-				markers.set(stop.id, entry);
+				entry = makeMarker(m);
+				markerEls.set(m.id, entry);
 			}
-			const style = styleOf(stop.id);
-			const selected = stop.id === selectedId;
-			entry.marker.setLngLat([stop.lng, stop.lat]);
-			entry.el.className = `mk ${style.colorClass} ${selected ? 'sel' : ''}`;
-			entry.el.style.zIndex = selected ? '2' : '1';
-			const badge = entry.el.querySelector<HTMLElement>('.badge')!;
-			badge.className = badgeClass(style);
-			badge.textContent = String(i + 1);
-			badge.setAttribute('aria-label', `Stop ${i + 1}, ${stop.name}, cluster ${style.letter}${selected ? ', selected' : ''}`);
-			badge.setAttribute('aria-pressed', String(selected));
-			entry.el.querySelector('.lt')!.textContent = style.letter;
-			entry.label.textContent = selected ? '' : stop.name;
-			entry.label.hidden = selected;
-		});
+			const { marker, el, badge, tag, label } = entry;
+			marker.setLngLat([m.lng, m.lat]);
+			el.className = ['mk', m.variant === 'dim' ? 'dim' : '', m.variant === 'base' ? 'base' : '', m.endpoint ? 'endpt' : '', m.colorClass, m.selected ? 'sel' : ''].filter(Boolean).join(' ');
+			el.style.zIndex = m.selected ? '3' : m.variant === 'dim' ? '0' : '1';
+			badge.className = ['badge', m.colorClass, m.shapeClass].filter(Boolean).join(' ');
+			if (m.variant === 'base') badge.innerHTML = svg(m.icon ?? 'home');
+			else badge.textContent = String(m.n);
+			badge.setAttribute('aria-label', m.aria);
+			badge.setAttribute('aria-pressed', String(!!m.selected));
+			badge.tabIndex = m.variant === 'base' ? -1 : 0;
+			tag.className = m.variant === 'cluster' ? 'lt' : 'dt';
+			tag.textContent = m.variant === 'base' ? '' : m.tag;
+			tag.hidden = m.variant === 'base' || !m.tag;
+			label.textContent = m.name;
+			label.hidden = !(m.label ?? m.variant !== 'dim') || !!m.selected;
+		}
 		placeLabels();
 	});
 
 	// ── cluster outlines + route lines + leg chips ──────────────────────
 	$effect(() => {
 		if (!ready || !map) return;
-		const features: Feature<Polygon>[] = [];
-		for (const info of clusters) {
-			if (info.stopIds.length < 2) continue;
-			const pts = info.stopIds
-				.map((id) => stops.find((s) => s.id === id))
-				.filter((s): s is Stop => !!s)
-				.map((s) => [s.lng, s.lat] as LngLat);
-			if (pts.length < 2) continue;
-			features.push({
+		const features: Feature<Polygon>[] = hulls
+			.filter((h) => h.points.length >= 2)
+			.map((h) => ({
 				type: 'Feature',
-				properties: { c: info.style.colorClass },
-				geometry: { type: 'Polygon', coordinates: [clusterOutline(pts, paddingFor(pts))] }
-			});
-		}
-		const collection: FeatureCollection<Polygon> = { type: 'FeatureCollection', features };
-		(map.getSource('hulls') as maplibregl.GeoJSONSource | undefined)?.setData(collection);
+				properties: { c: h.colorClass },
+				geometry: { type: 'Polygon', coordinates: [clusterOutline(h.points, paddingFor(h.points))] }
+			}));
+		(map.getSource('hulls') as maplibregl.GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features });
 	});
 
-	function setLine(name: string, coordinates: LngLat[], kind?: LineKind) {
-		(map?.getSource(name) as maplibregl.GeoJSONSource | undefined)?.setData({
-			type: 'Feature',
-			properties: kind ? { kind } : {},
-			geometry: { type: 'LineString', coordinates }
-		});
-	}
 	$effect(() => {
-		if (!ready) return;
-		setLine('line', line?.coordinates ?? [], line?.kind);
+		if (!ready || !map) return;
+		const features: Feature<LineString>[] = lines
+			.filter((l) => l.coordinates.length >= 2)
+			.map((l) => ({
+				type: 'Feature',
+				properties: { kind: l.kind, color: l.dayIndex == null ? theme.primary : theme.days[l.dayIndex % 3] },
+				geometry: { type: 'LineString', coordinates: l.coordinates }
+			}));
+		(map.getSource('lines') as maplibregl.GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features });
 	});
+
 	$effect(() => {
 		if (!ready) return;
-		setLine('suggested', suggestedLine ?? []);
+		(map?.getSource('suggested') as maplibregl.GeoJSONSource | undefined)?.setData({
+			type: 'Feature',
+			properties: {},
+			geometry: { type: 'LineString', coordinates: suggestedLine ?? [] }
+		});
 	});
 
 	$effect(() => {
@@ -314,7 +350,9 @@
 				chipMarkers.set(chip.id, marker);
 			}
 			marker.setLngLat(chip.position);
-			marker.getElement().firstElementChild!.textContent = chip.text;
+			const el = marker.getElement().firstElementChild as HTMLElement;
+			el.textContent = chip.text;
+			el.classList.toggle('dashed', !!chip.dashed);
 		}
 	});
 
@@ -323,8 +361,7 @@
 		if (!ready || !map) return;
 		popupMarker?.remove();
 		popupMarker = undefined;
-		const stop = stops.find((s) => s.id === selectedId);
-		if (!stop || !popup) return;
+		if (!popup) return;
 		const wrap = document.createElement('div');
 		wrap.className = 'popupwrap';
 		const card = document.createElement('div');
@@ -334,10 +371,19 @@
 		const title = document.createElement('div');
 		title.className = 'pt';
 		title.append(popup.title + ' ');
-		const tag = document.createElement('span');
-		tag.className = `ctag ${popup.cluster.colorClass}`;
-		tag.textContent = popup.cluster.letter;
-		title.append(tag);
+		if (popup.cluster) {
+			const tag = document.createElement('span');
+			tag.className = `ctag ${popup.cluster.colorClass}`;
+			tag.textContent = popup.cluster.letter;
+			title.append(tag);
+		}
+		if (popup.dayTag) {
+			const tag = document.createElement('span');
+			tag.className = `dtag ${popup.dayTag.colorClass}`;
+			tag.style.marginLeft = 'auto';
+			tag.textContent = popup.dayTag.text;
+			title.append(tag);
+		}
 		card.append(title);
 		if (popup.subtitle) {
 			const sub = document.createElement('div');
@@ -361,7 +407,7 @@
 			card.append(row);
 		}
 		const width = map.getContainer().clientWidth;
-		const { x, y } = map.project([stop.lng, stop.lat]);
+		const { x, y } = map.project(popup.at);
 		if (width < 520) {
 			// Narrow screens: above the marker (below it when there is no room), kept inside the viewport.
 			const cardWidth = 240;
@@ -374,13 +420,10 @@
 		}
 		wrap.append(card);
 		wrap.addEventListener('click', (e) => e.stopPropagation());
-		popupMarker = new maplibregl.Marker({ element: wrap, anchor: 'center' }).setLngLat([stop.lng, stop.lat]).addTo(map);
+		popupMarker = new maplibregl.Marker({ element: wrap, anchor: 'center' }).setLngLat(popup.at).addTo(map);
 	});
 
-	// ── auto-fit when stop positions or the drawn line change (not on selection) ──
-	const fitKey = $derived(
-		stops.map((s) => `${s.id}:${s.lat},${s.lng}`).join('|') + `#${line?.kind}:${line?.coordinates.length ?? 0}`
-	);
+	// ── auto-fit when the framed points change (not on selection) ───────
 	$effect(() => {
 		void fitKey;
 		void insets.bottom;

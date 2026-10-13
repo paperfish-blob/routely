@@ -23,11 +23,19 @@
 		<Button
 			variant="accent"
 			icon="sparkles"
-			disabled={itinerary.stops.length < 3}
-			title={itinerary.stops.length < 3 ? 'Add at least three stops to optimise the order' : undefined}
+			disabled={itinerary.isAll || itinerary.stops.length < 3}
+			title={itinerary.isAll
+				? 'Pick a day to optimise its order'
+				: itinerary.stops.length < 3
+					? 'Add at least three stops to optimise the order'
+					: undefined}
 			onclick={() => itinerary.openSuggest()}
 		>
-			Suggest better order
+			{#if itinerary.multiDay}
+				{itinerary.isAll ? 'Optimise a day' : `Optimise Day ${itinerary.dayIndex(itinerary.activeId ?? '') + 1}`}
+			{:else}
+				Suggest better order
+			{/if}
 		</Button>
 	{/if}
 </div>

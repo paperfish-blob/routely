@@ -26,6 +26,22 @@ export const ICONS = {
 	clock: `<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>`,
 	info: `<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>`,
 	'check-circle': `<circle cx="12" cy="12" r="9"/><path d="m8 12.5 3 3 5-6"/>`,
+	'chevron-down': `<path d="m6 9 6 6 6-6"/>`,
+	'chevron-right': `<path d="m9 6 6 6-6 6"/>`,
+	calendar: `<rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/>`,
+	more: `<g fill="currentColor" stroke="none"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></g>`,
+	layers: `<path d="M12 4 3 9l9 5 9-5zM3 14l9 5 9-5"/>`,
+	home: `<path d="M4 11l8-7 8 7"/><path d="M6 10v10h12V10"/><path d="M10 20v-6h4v6"/>`,
+	copy: `<rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>`,
+	'arrow-left': `<path d="M19 12H5M11 6l-6 6 6 6"/>`,
+	'arrow-right': `<path d="M5 12h14M13 6l6 6-6 6"/>`,
+	insert: `<path d="M3 12h7M14 12h7M12 3v18"/>`,
+	sliders: `<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>`,
+	plane: `<path d="M21 4 3 11l7 2 2 7z"/><path d="M10 13l11-9"/>`,
+	flag: `<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>`,
+	link: `<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>`,
+	loop: `<path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3M18 3v4h-4M6 21v-4h4"/>`,
+	ban: `<circle cx="12" cy="12" r="8"/><path d="M6.3 6.3l11.4 11.4"/>`,
 } as const;
 
 export type IconName = keyof typeof ICONS;

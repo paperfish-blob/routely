@@ -1,8 +1,17 @@
+<script lang="ts" module>
+	export interface AddTarget {
+		/** The day new stops go to. */
+		current: { id: string; label: string; dayClass: string };
+		options: { id: string; label: string; caption: string; dayClass: string; tag: string }[];
+		onpick: (id: string) => void;
+	}
+</script>
+
 <script lang="ts">
 	import { api, ApiError } from '#lib/api.ts';
 	import { placeSubtitle } from '#lib/format.ts';
 	import type { GeocodeCandidate } from '#lib/types.ts';
-	import { Banner, Button, Field, Icon, IconButton, Skeleton } from '#lib/ui/index.ts';
+	import { Banner, Button, Field, Icon, IconButton, Menu, MenuHeading, MenuItem, Skeleton } from '#lib/ui/index.ts';
 
 	interface Props {
 		onselect: (candidate: GeocodeCandidate) => void;
@@ -15,6 +24,10 @@
 		autofocus?: boolean;
 		/** Where the trip is: matches near this point are suggested first. */
 		near?: { lat: number; lng: number } | null;
+		/** Label of the hover button on each suggestion ("Add stop" when adding stops, "Choose" when picking a place). */
+		actionLabel?: string;
+		/** Which day a new stop goes to, with a picker (shown only for multi-day trips). */
+		target?: AddTarget | null;
 	}
 
 	let {
@@ -24,11 +37,15 @@
 		placeholder = variant === 'float' ? 'Search places to add' : 'Search a city, landmark or address',
 		onfocus,
 		autofocus = false,
-		near = null
+		near = null,
+		target = null,
+		actionLabel = 'Add stop'
 	}: Props = $props();
 
 	const MIN_CHARS = 3;
 	const DEBOUNCE_MS = 400;
+	let pickOpen = $state(false);
+	let pickTrigger = $state<HTMLElement | null>(null);
 	const NO_RESULTS = 'No places found. Try a different name.';
 
 	let query = $state('');
@@ -124,6 +141,31 @@
 	const titleOf = (c: GeocodeCandidate) => c.display_name.split(',')[0]?.trim() || c.display_name;
 </script>
 
+{#snippet addToChip()}
+		{#if target}
+			<span bind:this={pickTrigger} style="display: inline-flex">
+				<button
+					type="button"
+					class="addto {target.current.dayClass}"
+					aria-haspopup="menu"
+					aria-expanded={pickOpen}
+					aria-label="Adding to {target.current.label}. Change day"
+					onclick={() => (pickOpen = !pickOpen)}
+				>
+					<span class="dtag">{target.options.find((o) => o.id === target.current.id)?.tag}</span>{target.current.label}<Icon name="chevron-down" />
+				</button>
+			</span>
+			<Menu open={pickOpen} onclose={() => (pickOpen = false)} label="Add new stops to" anchor={pickTrigger}>
+				<MenuHeading>ADD NEW STOPS TO</MenuHeading>
+				{#each target.options as o (o.id)}
+					<MenuItem selected={o.id === target.current.id} onclick={() => { pickOpen = false; target.onpick(o.id); }}>
+						<span class="dtag {o.dayClass}">{o.tag}</span>{o.label} · {o.caption}
+					</MenuItem>
+				{/each}
+			</Menu>
+		{/if}
+	{/snippet}
+
 <div class="search" data-name="SearchBox">
 	{#if variant === 'float'}
 		<div class="m-search" data-name="FloatingSearch">
@@ -151,6 +193,7 @@
 			{#if query}
 				<IconButton label="Clear search" icon="close" onclick={() => { query = ''; inputEl?.focus(); }} />
 			{/if}
+			{@render addToChip()}
 		</div>
 		{#if help}
 			<div class="map-banner"><Banner variant={noResults ? 'warn' : 'err'}>{help}</Banner></div>
@@ -176,7 +219,9 @@
 			}}
 			onblur={() => (open = false)}
 			{onkeydown}
-		/>
+		>
+			{#snippet trailing()}{@render addToChip()}{/snippet}
+		</Field>
 	{/if}
 
 	{#if rateLimited}
@@ -219,7 +264,7 @@
 							<span class="t">{pre}{#if hit}<span class="hit">{hit}</span>{/if}{post}</span>
 							<span class="s">{placeSubtitle(r.display_name, title)}</span>
 						</span>
-						<Button size="sm" class="add" icon="plus" tabindex={-1} aria-label="Add {title}">Add stop</Button>
+						<Button size="sm" class="add" icon="plus" tabindex={-1} aria-label="{actionLabel} {title}">{actionLabel}</Button>
 					</div>
 				{/each}
 			{/if}
