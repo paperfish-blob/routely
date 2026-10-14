@@ -33,7 +33,7 @@ describe('SidebarState', () => {
 		expect(s.effective).toBe(470);
 		s.endDrag();
 		expect(s.width).toBe(470);
-		expect(saved()).toEqual({ sidebarWidth: 470, sidebarCollapsed: false });
+		expect(saved()).toEqual({ sidebarWidth: 470, sidebarCollapsed: false, summaryCollapsed: false });
 	});
 
 	it('collapses when released past the minimum, remembering the old width', () => {
@@ -45,7 +45,7 @@ describe('SidebarState', () => {
 		s.endDrag();
 		expect(s.collapsed).toBe(true);
 		expect(s.effective).toBe(56);
-		expect(saved()).toEqual({ sidebarWidth: 480, sidebarCollapsed: true });
+		expect(saved()).toEqual({ sidebarWidth: 480, sidebarCollapsed: true, summaryCollapsed: false });
 	});
 
 	it('between 260 and 320 it stops at the minimum instead of collapsing', () => {
@@ -76,6 +76,14 @@ describe('SidebarState', () => {
 		expect(s.effective).toBe(500);
 		s.windowWidth = 1600;
 		expect(s.effective).toBe(600);
+	});
+
+	it('folds the summary card and remembers it', () => {
+		const { s, saved } = make({ summaryCollapsed: true });
+		expect(s.summaryCollapsed).toBe(true);
+		s.toggleSummary();
+		expect(s.summaryCollapsed).toBe(false);
+		expect(saved().summaryCollapsed).toBe(false);
 	});
 
 	it('toggles', () => {

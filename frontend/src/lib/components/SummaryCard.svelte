@@ -2,10 +2,14 @@
 	import { describeCluster } from '#lib/clusters.ts';
 	import { durationParts, formatKmValue } from '#lib/format.ts';
 	import { CLUSTER_PRESETS_KM, type ItineraryState } from '#lib/state/itinerary.svelte.ts';
-	import { Banner, Button, ClusterChip, Icon, SegmentedControl, Skeleton, WeatherIcon } from '#lib/ui/index.ts';
+	import type { SidebarState } from '#lib/state/sidebar.svelte.ts';
+	import { Banner, Button, ClusterChip, ClusterTag, Icon, IconButton, SegmentedControl, Skeleton, WeatherIcon } from '#lib/ui/index.ts';
 	import { formatTemp } from '#lib/weather.ts';
 
-	let { itinerary }: { itinerary: ItineraryState } = $props();
+	let { itinerary, sidebar }: { itinerary: ItineraryState; sidebar: SidebarState } = $props();
+
+	const folded = $derived(sidebar.summaryCollapsed);
+	const MAX_TAGS = 5;
 
 	const day = $derived(itinerary.activeDay);
 	const stopCount = $derived(itinerary.stops.length);
@@ -57,7 +61,30 @@
 		</div>
 	</section>
 {:else if hasNumbers && stats}
-	<section class="sum" aria-label={itinerary.multiDay ? 'Day summary' : 'Trip summary'} aria-busy={itinerary.summaryLoading} data-name="SummaryCard">
+	<section class="sum {folded ? 'collapsed' : ''}" aria-label={itinerary.multiDay ? 'Day summary' : 'Trip summary'} aria-busy={itinerary.summaryLoading} data-name={folded ? 'SummaryCard/Collapsed' : 'SummaryCard'}>
+		{#if folded}
+			<button class="sumh" aria-expanded="false" aria-controls="summary-body" title="Show summary details" onclick={() => sidebar.toggleSummary()}>
+				<span class="col">
+					<span class="vals num">
+						<span>{stats.approx ? '≈ ' : ''}{formatKmValue(stats.km ?? 0)} <small>km</small></span>
+						<span class="dot">·</span>
+						<span>{#if time}{time.main} <small>{time.unit}</small>{:else}—{/if}</span>
+						<span class="dot">·</span>
+						<span>{stopCount} <small>{stopCount === 1 ? 'stop' : 'stops'}</small></span>
+					</span>
+					{#if showClusters}
+						{@const infos = itinerary.clusterInfos}
+						<span class="cl">
+							{#each infos.slice(0, MAX_TAGS) as info (info.id)}<ClusterTag cluster={info.style} />{/each}
+							{#if infos.length > MAX_TAGS}<span>+{infos.length - MAX_TAGS}</span>{/if}
+							<span style="margin-left: var(--sp-2)">{infos.length} {infos.length === 1 ? 'cluster' : 'clusters'}</span>
+						</span>
+					{/if}
+				</span>
+				<Icon name="drawer" />
+			</button>
+		{:else}
+		<div id="summary-body" style="display: contents">
 		{#if itinerary.summaryError}
 			<Banner variant="err">
 				Couldn’t update distances. {itinerary.summaryError}
@@ -66,6 +93,7 @@
 				{/snippet}
 			</Banner>
 		{/if}
+		<div class="sum-top">
 		<div class="sum-row">
 			<div class="stat">
 				<div class="k">{itinerary.multiDay ? 'DAY DISTANCE' : 'TOTAL DISTANCE'}</div>
@@ -83,6 +111,8 @@
 				<div class="k">STOPS</div>
 				<div class="v num">{stopCount}</div>
 			</div>
+		</div>
+		<IconButton label="Hide summary details" icon="drawer-open" aria-expanded="true" aria-controls="summary-body" onclick={() => sidebar.toggleSummary()} />
 		</div>
 		{#if showClusters}
 			<div style="display: flex; flex-direction: column; gap: var(--sp-8)">
@@ -117,6 +147,8 @@
 				</span>
 				<a href="#all-days" onclick={(e) => { e.preventDefault(); itinerary.setActive(null); }}>All days<Icon name="chevron-right" size="sm" /></a>
 			</div>
+		{/if}
+		</div>
 		{/if}
 	</section>
 {/if}

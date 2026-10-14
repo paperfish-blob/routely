@@ -3,11 +3,12 @@
 	import { durationParts, formatKm, formatKmValue, moveItem } from '#lib/format.ts';
 	import { sortable } from '#lib/sortable.ts';
 	import type { ItineraryState } from '#lib/state/itinerary.svelte.ts';
+	import type { SidebarState } from '#lib/state/sidebar.svelte.ts';
 	import type { Day } from '#lib/types.ts';
 	import { Badge, Icon, IconButton, Pill, WeatherIcon } from '#lib/ui/index.ts';
 	import { formatTemp, glance } from '#lib/weather.ts';
 
-	let { itinerary, onadd, compact = false }: { itinerary: ItineraryState; onadd?: () => void; compact?: boolean } = $props();
+	let { itinerary, sidebar, onadd, compact = false }: { itinerary: ItineraryState; sidebar: SidebarState; onadd?: () => void; compact?: boolean } = $props();
 
 	let collapsed = $state<Record<string, boolean>>({});
 	const trip = $derived(itinerary.tripTotals);
@@ -41,7 +42,26 @@
 	};
 </script>
 
-{#if !compact}
+{#if !compact && sidebar.summaryCollapsed}
+<div class="tripbar">
+	<section class="sum collapsed" aria-label="Trip summary" data-name="TripTotals/Collapsed" style="margin: 0; box-shadow: none">
+		<button class="sumh" aria-expanded="false" title="Show summary details" onclick={() => sidebar.toggleSummary()}>
+			<span class="col">
+				<span class="vals num">
+					<span>{trip.ready ? `${trip.approx ? '≈ ' : ''}${formatKmValue(trip.km ?? 0)}` : '…'} <small>km</small></span>
+					<span class="dot">·</span>
+					<span>{#if tripTime}{tripTime.main} <small>{tripTime.unit}</small>{:else}—{/if}</span>
+					<span class="dot">·</span>
+					<span>{itinerary.totalStopCount} <small>{itinerary.totalStopCount === 1 ? 'stop' : 'stops'}</small></span>
+					<span class="dot">·</span>
+					<span>{itinerary.days.length} <small>days</small></span>
+				</span>
+			</span>
+			<Icon name="drawer" />
+		</button>
+	</section>
+</div>
+{:else if !compact}
 <div class="tripstats" data-name="TripTotals">
 	<div class="stat">
 		<div class="k">TRIP DISTANCE</div>
@@ -59,6 +79,7 @@
 		<div class="k">STOPS</div>
 		<div class="v num">{itinerary.totalStopCount}</div>
 	</div>
+	<IconButton class="tripstats-toggle" label="Hide summary details" icon="drawer-open" aria-expanded="true" onclick={() => sidebar.toggleSummary()} />
 </div>
 {#if strip.length > 0}
 	<div class="wxstrip" role="group" aria-label="Forecast for each day" data-name="ForecastStrip">

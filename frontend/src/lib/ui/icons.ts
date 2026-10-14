@@ -51,6 +51,8 @@ export const ICONS = {
 	'wx-snow': `<path d="M7 14a4 4 0 0 1-.6-7.96A5.5 5.5 0 0 1 17 5a4.5 4.5 0 0 1 .5 9z"/><path d="M8 18v.01M12 20v.01M16 18v.01M10 22v.01M14 22v.01"/>`,
 	drop: `<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>`,
 	wind: `<path d="M3 8h11a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h7"/>`,
+	drawer: `<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 15h18"/><path d="M3 15h18v2a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" fill="currentColor" stroke="none" opacity=".3"/>`,
+	'drawer-open': `<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18"/><path d="M3 9h18v8a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" fill="currentColor" stroke="none" opacity=".3"/>`,
 	refresh: `<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>`,
 } as const;
 

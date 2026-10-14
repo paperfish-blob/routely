@@ -13,8 +13,8 @@ describe('view preferences', () => {
 		const mem = new Map<string, string>();
 		const storage = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v) };
 		const store = new LocalViewPrefsStore(storage);
-		store.save({ sidebarWidth: 480, sidebarCollapsed: true });
-		expect(store.load()).toEqual({ sidebarWidth: 480, sidebarCollapsed: true });
+		store.save({ sidebarWidth: 480, sidebarCollapsed: true, summaryCollapsed: true });
+		expect(store.load()).toEqual({ sidebarWidth: 480, sidebarCollapsed: true, summaryCollapsed: true });
 	});
 
 	it('survives storage that throws', () => {

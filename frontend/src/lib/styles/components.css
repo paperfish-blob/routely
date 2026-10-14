@@ -66,6 +66,7 @@
 /* summary */
 .sum{margin:0 var(--sp-16) var(--sp-16);padding:var(--sp-16);border-radius:var(--r-xl);background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);display:flex;flex-direction:column;gap:var(--sp-14);flex:none}
 .sum-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--sp-12)}
+.stat .k,.stat .v{white-space:nowrap}
 .stat .k{font-size:var(--fs-caption);font-weight:var(--fw-bold);color:var(--ink-2);letter-spacing:var(--ls-caps)}
 .stat .v{font-size:var(--fs-stat);font-weight:var(--fw-extrabold);letter-spacing:var(--ls-tight)}
 .stat .v small{font-size:var(--fs-small);font-weight:var(--fw-semibold);color:var(--ink-2);letter-spacing:0}
@@ -297,8 +298,9 @@
 .route.cur,.route.dimmed{stroke:var(--route-dash);stroke-width:4;stroke-dasharray:10 9}
 .route.xf{stroke:var(--route-dash);stroke-width:3;stroke-dasharray:1 9}
 
-.tripline{display:flex;align-items:center;gap:var(--sp-10);padding-top:var(--sp-12);border-top:1px solid var(--line);font-size:var(--fs-small);font-weight:var(--fw-semibold);color:var(--ink-2)}
+.tripline{display:flex;flex-wrap:wrap;align-items:center;gap:var(--sp-4) var(--sp-10);padding-top:var(--sp-12);border-top:1px solid var(--line);font-size:var(--fs-small);font-weight:var(--fw-semibold);color:var(--ink-2)}
 .tripline b{color:var(--ink);font-weight:var(--fw-extrabold)}
+.tripline .num{white-space:nowrap}
 .tripline a{margin-left:auto;color:var(--primary);font-weight:var(--fw-extrabold);text-decoration:none;display:inline-flex;align-items:center;gap:var(--sp-4);white-space:nowrap}
 .tripline a:hover{text-decoration:underline}
 
@@ -436,3 +438,32 @@ body.rz-dragging *{cursor:col-resize !important}
 .rail-days{display:flex;flex-direction:column;gap:var(--sp-8);flex:1;overflow-y:auto;padding:var(--sp-4) 0}
 .rail-days .dtag{border:0}
 .rail-days .dtag.on{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--c)}
+
+/* collapsible summary card */
+.sum.collapsed{padding:0;gap:0}
+.sum-top{position:relative}
+/* The drawer button floats in the corner so the numbers keep the full width, even at the 320 px sidebar. */
+.sum-top .sum-row{grid-template-columns:auto auto 1fr;gap:var(--sp-10) var(--sp-14);padding-right:34px}
+.sum-top .ibtn{position:absolute;top:-6px;right:-8px;width:32px;height:32px}
+.sumh{display:flex;align-items:center;gap:var(--sp-8);width:100%;min-height:64px;padding:0 var(--sp-8) 0 var(--sp-16);border:0;background:none;text-align:left;border-radius:var(--r-xl)}
+.sumh:hover{background:var(--surface-2)}
+.sumh .col{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.sumh .vals{display:flex;align-items:baseline;gap:7px;font-size:var(--fs-body-lg);font-weight:var(--fw-extrabold);white-space:nowrap;overflow:hidden}
+.sumh .vals small{font-size:var(--fs-caption-2);font-weight:var(--fw-semibold);color:var(--ink-2)}
+.sumh .vals .dot{color:var(--grab);font-weight:var(--fw-bold)}
+.sumh .cl{display:flex;gap:var(--sp-4);align-items:center;font-size:var(--fs-micro-2);font-weight:var(--fw-bold);color:var(--ink-2)}
+.sumh .cl .ctag{min-width:20px;height:20px;font-size:var(--fs-nano);padding:0 5px}
+.sumh > .ico{width:22px;height:22px;color:var(--ink-3);flex:none}
+.tripstats{position:relative}
+.tripstats-toggle{position:absolute;top:var(--sp-4);right:var(--sp-8);width:32px;height:32px}
+.tripbar{padding:var(--sp-8) var(--sp-16);border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--surface-2);flex:none}
+.tripbar .sum{background:var(--surface)}
+/* Narrow sidebar (320 px): tighter labels so the numbers and the drawer button never collide. */
+.sum{container-type:inline-size}
+@container (max-width: 330px){
+	.row-between{flex-wrap:wrap}
+}
+@container (max-width: 300px){
+	.sum-top .sum-row{gap:var(--sp-8) var(--sp-10)}
+	.sum .stat .k{font-size:var(--fs-micro-2);letter-spacing:0}
+}

@@ -102,6 +102,15 @@ A trip is a list of days (`Itinerary.days`). The UI always shows **one day at a 
 - **Every destructive day/stop action is undoable** (toast with Undo): delete day, clear stops, remove/move/copy a stop.
 - **Optimising is per day** and pins the start first and the end last.
 
+## Collapsible summary
+
+The day summary (and the all-days trip totals) can be folded to a ~64 px row with the **drawer icon** button (`drawer-open` when expanded, `drawer` when folded). Rules to keep:
+
+- **Folded shows the essentials:** distance · time · stops, plus the first five cluster tags, "+n" and "N clusters". Everything else (cluster-size control, chips, "Day runs", "Whole trip") is only in the expanded card.
+- **The whole folded row is the button** (`aria-expanded`, Enter/Space). Stop tags, map outlines and weather by area are unaffected by it.
+- **The choice is a per-browser view setting** (`summaryCollapsed` in `ViewPrefsStore`), shared by the day summary and the all-days totals. New visitors start expanded.
+- Loading and error states keep their own card; only the numbers card folds.
+
 ## Resizable sidebar
 
 On desktop the sidebar is **320–640 px wide** (default 400, never more than half the window) and can be dragged by the handle on its right edge. Rules to keep:

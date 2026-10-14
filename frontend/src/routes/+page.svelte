@@ -412,14 +412,14 @@
 			{#if itinerary.multiDay}<DayTabs {itinerary} onadd={() => (addDayOpen = true)} />{/if}
 
 			{#if itinerary.isAll}
-				<AllDaysView {itinerary} onadd={() => (addDayOpen = true)} />
+				<AllDaysView {itinerary} {sidebar} onadd={() => (addDayOpen = true)} />
 			{:else}
 				{#if itinerary.multiDay}<DayHeader {itinerary} ontripdates={() => (datesOpen = true)} />{/if}
 				<StopList {itinerary} empty={emptyDay} top={weatherDesktop} />
 				{#if itinerary.loaded && itinerary.stops.length === 1 && !itinerary.hasBase}
 					<p class="help info hint"><Icon name="info" size="sm" />Add one more stop to see distances and routes.</p>
 				{/if}
-				<SummaryCard {itinerary} />
+				<SummaryCard {itinerary} {sidebar} />
 			{/if}
 		</aside>
 	{:else}
@@ -515,7 +515,7 @@
 			</div>
 			{#if sheet !== 'collapsed'}
 				{#if itinerary.isAll}
-					<AllDaysView {itinerary} compact onadd={() => (addDayOpen = true)} />
+					<AllDaysView {itinerary} {sidebar} compact onadd={() => (addDayOpen = true)} />
 				{:else}
 					{#if itinerary.multiDay}<DayHeader {itinerary} ontripdates={() => (datesOpen = true)} />{/if}
 					{#if itinerary.useBase}<RouteEndsRow {itinerary} />{/if}

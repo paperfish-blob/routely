@@ -15,6 +15,8 @@ export class SidebarState {
 	/** The width you chose (kept while collapsed, so expanding restores it). */
 	width = $state(SIDEBAR_DEFAULT);
 	collapsed = $state(false);
+	/** The summary card at the bottom of the sidebar is folded to one row. */
+	summaryCollapsed = $state(false);
 	windowWidth = $state(1280);
 	/** While dragging: the raw (unclamped) width under the pointer. */
 	dragRaw = $state<number | null>(null);
@@ -25,6 +27,7 @@ export class SidebarState {
 		const saved = this.prefs.load();
 		if (saved.sidebarWidth) this.width = saved.sidebarWidth;
 		if (saved.sidebarCollapsed) this.collapsed = true;
+		if (saved.summaryCollapsed) this.summaryCollapsed = true;
 	}
 
 	max = $derived(maxSidebarFor(this.windowWidth));
@@ -41,7 +44,7 @@ export class SidebarState {
 	);
 
 	private save(): void {
-		this.prefs.save({ sidebarWidth: this.width, sidebarCollapsed: this.collapsed });
+		this.prefs.save({ sidebarWidth: this.width, sidebarCollapsed: this.collapsed, summaryCollapsed: this.summaryCollapsed });
 	}
 
 	startDrag(): void {
@@ -94,6 +97,11 @@ export class SidebarState {
 
 	expand(): void {
 		this.collapsed = false;
+		this.save();
+	}
+
+	toggleSummary(): void {
+		this.summaryCollapsed = !this.summaryCollapsed;
 		this.save();
 	}
 

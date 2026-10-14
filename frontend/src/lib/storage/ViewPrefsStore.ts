@@ -2,6 +2,8 @@
 export interface ViewPrefs {
 	sidebarWidth?: number;
 	sidebarCollapsed?: boolean;
+	/** The day/trip summary card is folded to one row. */
+	summaryCollapsed?: boolean;
 }
 
 export interface ViewPrefsStore {
@@ -20,6 +22,7 @@ export function parseViewPrefs(raw: string | null): ViewPrefs {
 		const w = data.sidebarWidth;
 		if (typeof w === 'number' && Number.isFinite(w) && w > 0 && w < 5000) prefs.sidebarWidth = w;
 		if (typeof data.sidebarCollapsed === 'boolean') prefs.sidebarCollapsed = data.sidebarCollapsed;
+		if (typeof data.summaryCollapsed === 'boolean') prefs.summaryCollapsed = data.summaryCollapsed;
 		return prefs;
 	} catch {
 		return {};
