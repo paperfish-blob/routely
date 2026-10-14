@@ -71,7 +71,7 @@ Numbers (distances, durations, counts) always use `.num` (tabular figures). Dist
 | EndpointRow (a day's START / END, with its menu) | `components/EndpointRow.svelte` |
 | StartEndCard (editor: where a day starts and ends) · RouteEndsRow (mobile) | `components/StartEndCard.svelte`, `components/RouteEndsRow.svelte` |
 | AddDayDialog · TripDatesDialog · TripOptions | `components/AddDayDialog.svelte`, `TripDatesDialog.svelte`, `TripOptions.svelte` |
-| WeatherCard (a day's weather at its start and end) · WeatherIcon · DayGlance (tab/chip temperatures) | `components/WeatherCard.svelte`, `ui/WeatherIcon.svelte`, `components/DayGlance.svelte` |
+| WeatherCard (a day's weather at its start and end, or by area) · WeatherAreaList · WeatherDetail · WeatherSource · WeatherIcon · DayGlance (tab/chip temperatures) | `components/WeatherCard.svelte`, `WeatherAreaList.svelte`, `WeatherDetail.svelte`, `WeatherSource.svelte`, `ui/WeatherIcon.svelte`, `components/DayGlance.svelte` |
 | "Adding to Day N" chip | `components/SearchBox.svelte` (`target` prop) |
 
 ## Building new UI
@@ -106,6 +106,7 @@ A trip is a list of days (`Itinerary.days`). The UI always shows **one day at a 
 Weather appears once the trip has dates (Open-Meteo, via the backend's `GET /weather`; only coordinates and a date are sent). Rules to keep when extending it:
 
 - **Start and end are read separately.** A day shows one reading when its start and end are within 30 km (or it has one stop), otherwise a **START** and an **END** reading, each collapsible. Without a fixed start/end, the first and last stop stand in.
+- **By area.** When a day's clusters form two or more areas, the card offers **Start & end | By area** (by area is the default). Clusters whose centres are within 30 km share one row (single linkage), and a start/end within 30 km of an area folds into it ("also END"); a farther one keeps its own row. Weather is looked up per area, never per cluster, so changing the cluster size regroups rows without adding requests. A row is tagged with its cluster letters, opens to the hourly strip, tints its stops in the list and outlines them on the map, and a selected stop opens its area. An area that is 5° or more away from the others, or whose rain chance differs by 30 points or more, gets a `10° COOLER` / `+55% RAIN` chip. Each area loads independently: one failing shows "Weather unavailable · Retry" and never hides the rest. On mobile the rows become swipeable cards.
 - **Every reading says where it comes from:** `FORECAST` (today to 15 days ahead, with an hourly strip and a rain advisory banner), `TYPICAL` (further ahead: an average of the same date in recent years, with a "not a forecast" notice) or `RECORDED` (past days: no rain *chance*, just what fell). Never show a typical value as if it were a forecast.
 - **Weather is a bonus.** It never blocks routing; when it fails the day shows an error banner with Retry, and the tabs show `—`.
 - **States:** no dates (a slim dashed prompt row with "Add dates"), loading (skeleton in the card's shape), ready, unavailable.

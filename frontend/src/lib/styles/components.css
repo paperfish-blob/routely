@@ -379,3 +379,37 @@
 .daysec-h .wx{margin-left:auto;flex:none}
 .wxnote{padding:0 0 var(--sp-12);flex:none}
 .stops .wxcard{margin:0 0 var(--sp-12)}
+
+/* weather by area */
+.wxhead{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-8)}
+.wxhead .tt{font-size:var(--fs-micro);font-weight:var(--fw-extrabold);letter-spacing:var(--ls-caps);color:var(--ink-3)}
+.wxlist{display:flex;flex-direction:column;gap:var(--sp-2)}
+.wxa{display:flex;align-items:center;gap:var(--sp-10);min-height:52px;padding:var(--sp-6) var(--sp-8);border-radius:var(--r-xl);border:1.5px solid transparent;width:100%;text-align:left;background:transparent}
+button.wxa:hover{background:var(--surface-2)}
+.wxa.sel{background:var(--cs,var(--primary-soft));border-color:var(--c,var(--primary))}
+.wxa .tags{display:flex;gap:var(--sp-3);flex:none;min-width:26px}
+.wxa .tx{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25}
+.wxa .tx b{font-size:var(--fs-small-2);font-weight:var(--fw-extrabold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wxa .tx span{font-size:var(--fs-caption);color:var(--ink-2);font-weight:var(--fw-semibold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wxa > .ico{width:24px;height:24px;flex:none}
+.wxa .rt-r{display:flex;flex-direction:column;align-items:flex-end;line-height:1.2;flex:none}
+.wxa .t{font-weight:var(--fw-extrabold);font-size:var(--fs-body-lg);white-space:nowrap}
+.wxa .t small{font-weight:var(--fw-semibold);color:var(--ink-2);font-size:var(--fs-caption)}
+.wxa .rn{font-size:var(--fs-micro-2);font-weight:var(--fw-bold);color:var(--ink-2);display:flex;gap:var(--sp-3);align-items:center}
+.wxa .rn .ico{width:13px;height:13px}
+.wxa.wet .rn{color:var(--cA)}
+.wxdiffs{display:flex;gap:var(--sp-6);flex-wrap:wrap;padding:0 var(--sp-8) var(--sp-4)}
+.wxchip.diff{background:var(--accent-soft);color:var(--day2)}
+.wxdetail{margin:var(--sp-2) 0 var(--sp-6);padding:var(--sp-10);border-radius:var(--r-xl);background:var(--surface);border:1.5px solid var(--c,var(--line));display:flex;flex-direction:column;gap:var(--sp-10)}
+.wxdetail .wxrole{white-space:normal;line-height:1.3}
+.wxpin.sel{border-width:3px;height:34px}
+.stop.areahl{background:var(--cs,var(--surface-2))}
+.wxcards{display:flex;gap:var(--sp-8);overflow-x:auto;margin:0 calc(var(--sp-12) * -1);padding:0 var(--sp-12) var(--sp-2);scroll-snap-type:x proximity}
+.wxac{flex:none;width:136px;border:1.5px solid var(--line);border-radius:var(--r-xl);padding:var(--sp-8) var(--sp-10);display:flex;flex-direction:column;gap:var(--sp-3);background:var(--surface);text-align:left;scroll-snap-align:start}
+.wxac.sel{border-color:var(--c);background:var(--cs)}
+.wxac .h{display:flex;align-items:center;justify-content:space-between;min-height:24px}
+.wxac .h .ico{width:22px;height:22px}
+.wxac .t{font-size:var(--fs-body-lg);font-weight:var(--fw-extrabold)}
+.wxac .t small{font-size:var(--fs-caption);font-weight:var(--fw-semibold);color:var(--ink-2)}
+.wxac .n{font-size:var(--fs-micro-2);font-weight:var(--fw-bold);color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wxac.wet .n{color:var(--cA)}

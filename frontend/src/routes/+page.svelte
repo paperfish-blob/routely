@@ -142,6 +142,7 @@
 					.map((c) => ({
 						id: String(c.id),
 						colorClass: c.style.colorClass,
+						strong: itinerary.areaStopIds.has(c.stopIds[0]),
 						points: c.stopIds.flatMap((id) => {
 							const s = itinerary.stopAny(id);
 							return s ? [coord(s)] : [];
@@ -182,6 +183,24 @@
 	/** Weather at each day's start and end (the active day, or every day in the all-days view). */
 	const weatherPins = $derived.by<WeatherPin[]>(() => {
 		const out: WeatherPin[] = [];
+		if (itinerary.showAreas && !itinerary.isAll) {
+			for (const r of itinerary.areaRows) {
+				if (!r.reading) continue;
+				const w = r.reading.wx;
+				const name = r.outer ? r.place.name : r.group!.name;
+				out.push({
+					id: `area:${r.id}`,
+					position: coord(r.place),
+					text: formatTemp(w.temp_max_c, itinerary.tempUnit),
+					icon: iconName(w.icon),
+					tone: `wx-${tone(w.icon)}`,
+					colorClass: r.group?.clusters[0].style.colorClass ?? dayClass(itinerary.dayIndex(itinerary.activeId ?? '')),
+					label: `Weather at ${name}: ${w.summary}, ${formatTemp(w.temp_max_c, itinerary.tempUnit)}`,
+					strong: itinerary.openAreaId === r.id
+				});
+			}
+			return out;
+		}
 		itinerary.days.forEach((day, di) => {
 			if (!itinerary.isAll && day.id !== itinerary.activeId) return;
 			for (const r of itinerary.dayWeather(day).readings) {

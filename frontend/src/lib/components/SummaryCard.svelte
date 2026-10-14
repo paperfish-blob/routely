@@ -2,7 +2,8 @@
 	import { describeCluster } from '#lib/clusters.ts';
 	import { durationParts, formatKmValue } from '#lib/format.ts';
 	import { CLUSTER_PRESETS_KM, type ItineraryState } from '#lib/state/itinerary.svelte.ts';
-	import { Banner, Button, ClusterChip, Icon, SegmentedControl, Skeleton } from '#lib/ui/index.ts';
+	import { Banner, Button, ClusterChip, Icon, SegmentedControl, Skeleton, WeatherIcon } from '#lib/ui/index.ts';
+	import { formatTemp } from '#lib/weather.ts';
 
 	let { itinerary }: { itinerary: ItineraryState } = $props();
 
@@ -97,7 +98,10 @@
 				</div>
 				<div class="chips">
 					{#each itinerary.clusterInfos as info (info.id)}
-						<ClusterChip cluster={info.style} text={describeCluster(info)} />
+						{@const area = itinerary.areaOfCluster(info.id)}
+						<ClusterChip cluster={info.style} text={describeCluster(info)}>
+							{#if area?.reading}<span class="wx"><WeatherIcon kind={area.reading.wx.icon} />{formatTemp(area.reading.wx.temp_max_c, itinerary.tempUnit)}</span>{/if}
+						</ClusterChip>
 					{/each}
 				</div>
 			</div>

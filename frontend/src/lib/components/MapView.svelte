@@ -38,6 +38,8 @@
 		id: string;
 		colorClass: string;
 		points: [number, number][];
+		/** Drawn heavier: the area opened in the weather card. */
+		strong?: boolean;
 	}
 	export interface LegChip {
 		id: string;
@@ -56,6 +58,8 @@
 		/** Day colour class (day1…day3) for the pin's outline. */
 		colorClass: string;
 		label: string;
+		/** The area opened in the weather card. */
+		strong?: boolean;
 	}
 	export interface PopupInfo {
 		title: string;
@@ -235,8 +239,8 @@
 		m.addSource('hulls', { type: 'geojson', data: empty });
 		m.addSource('lines', { type: 'geojson', data: empty });
 		m.addSource('suggested', { type: 'geojson', data: emptyLine() });
-		m.addLayer({ id: 'hull-fill', type: 'fill', source: 'hulls', paint: { 'fill-color': cluster, 'fill-opacity': 0.1 } });
-		m.addLayer({ id: 'hull-line', type: 'line', source: 'hulls', layout: round, paint: { 'line-color': cluster, 'line-opacity': 0.8, 'line-width': 2, 'line-dasharray': [1, 3.5] } });
+		m.addLayer({ id: 'hull-fill', type: 'fill', source: 'hulls', paint: { 'fill-color': cluster, 'fill-opacity': ['case', ['==', ['get', 's'], 1], 0.22, 0.1] as maplibregl.ExpressionSpecification } });
+		m.addLayer({ id: 'hull-line', type: 'line', source: 'hulls', layout: round, paint: { 'line-color': cluster, 'line-opacity': 0.8, 'line-width': ['case', ['==', ['get', 's'], 1], 3.5, 2] as maplibregl.ExpressionSpecification, 'line-dasharray': [1, 3.5] } });
 		m.addLayer({ id: 'line-dim', type: 'line', source: 'lines', filter: kindIs('dim'), layout: { 'line-join': 'round' }, paint: { 'line-color': theme.routeDash, 'line-width': 4, 'line-opacity': 0.7, 'line-dasharray': [2.5, 2.25] } });
 		m.addLayer({ id: 'line-transfer', type: 'line', source: 'lines', filter: kindIs('transfer'), layout: round, paint: { 'line-color': theme.routeDash, 'line-width': 3, 'line-dasharray': [0.01, 3] } });
 		m.addLayer({ id: 'line-current', type: 'line', source: 'lines', filter: kindIs('current'), layout: { 'line-join': 'round' }, paint: { 'line-color': theme.routeDash, 'line-width': 4, 'line-dasharray': [2.5, 2.25] } });
@@ -321,7 +325,7 @@
 			.filter((h) => h.points.length >= 2)
 			.map((h) => ({
 				type: 'Feature',
-				properties: { c: h.colorClass },
+				properties: { c: h.colorClass, s: h.strong ? 1 : 0 },
 				geometry: { type: 'Polygon', coordinates: [clusterOutline(h.points, paddingFor(h.points))] }
 			}));
 		(map.getSource('hulls') as maplibregl.GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features });
@@ -395,7 +399,7 @@
 			}
 			marker.setLngLat(pin.position);
 			const el = marker.getElement();
-			el.innerHTML = `<span class="wxpin ${pin.colorClass}" role="img" aria-label="${escapeAttr(pin.label)}"><svg class="ico ${pin.tone}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[pin.icon]}</svg>${pin.text}</span>`;
+			el.innerHTML = `<span class="wxpin ${pin.colorClass}${pin.strong ? ' sel' : ''}" role="img" aria-label="${escapeAttr(pin.label)}"><svg class="ico ${pin.tone}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[pin.icon]}</svg>${pin.text}</span>`;
 		}
 	});
 

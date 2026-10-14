@@ -1,4 +1,5 @@
 import { dayDate, formatDayShort, haversineKm } from './days';
+import type { ClusterInfo, ClusterStyle } from './clusters';
 import type { Day, ResolvedEnds, Stop, TempUnit, WeatherIconKind, WeatherResponse } from './types';
 import type { IconName } from './ui/icons';
 
@@ -136,3 +137,136 @@ export const sourceLabel = (source: WeatherResponse['source']): string =>
 	source === 'forecast' ? 'FORECAST' : source === 'typical' ? 'TYPICAL' : 'RECORDED';
 
 export const PERIOD_LABEL = { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening', night: 'Night' } as const;
+
+// ── weather by area (clusters) ──────────────────────────────────────────
+
+/** One or more clusters read together because their centres are within MERGE_KM of each other. */
+export interface AreaGroup {
+	id: string;
+	clusters: ClusterInfo[];
+	stops: Stop[];
+	center: { lat: number; lng: number };
+	/** First stop's name, plus how many more: "KLCC +2". */
+	name: string;
+}
+
+/** A start or end that is too far from every area to share its reading. */
+export interface OuterPoint {
+	role: 'start' | 'end' | 'both';
+	place: Stop;
+}
+
+export interface AreaPlan {
+	groups: AreaGroup[];
+	outer: OuterPoint[];
+	/** The group a start/end reading is folded into, when there is one. */
+	startIn: string | null;
+	endIn: string | null;
+	/** Worth showing by area: at least two places far enough apart to differ (areas, or an area plus a distant start/end). */
+	applicable: boolean;
+}
+
+const centroid = (points: { lat: number; lng: number }[]) => ({
+	lat: points.reduce((a, p) => a + p.lat, 0) / points.length,
+	lng: points.reduce((a, p) => a + p.lng, 0) / points.length
+});
+
+/**
+ * Groups clusters whose centres are within MERGE_KM (single linkage), so the number of weather
+ * lookups depends on how spread out the day is, never on the cluster size setting.
+ */
+export function planAreas(
+	clusters: ClusterInfo[],
+	findStop: (id: string) => Stop | undefined,
+	start: Stop | null,
+	end: Stop | null
+): AreaPlan {
+	const withStops = clusters
+		.map((c) => ({ c, stops: c.stopIds.flatMap((id) => findStop(id) ?? []) }))
+		.filter((x) => x.stops.length > 0)
+		.map((x) => ({ ...x, center: centroid(x.stops) }));
+	const parent = withStops.map((_, i) => i);
+	const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+	for (let a = 0; a < withStops.length; a++) {
+		for (let b = a + 1; b < withStops.length; b++) {
+			if (haversineKm(withStops[a].center, withStops[b].center) < MERGE_KM) parent[find(b)] = find(a);
+		}
+	}
+	const byRoot = new Map<number, typeof withStops>();
+	withStops.forEach((x, i) => byRoot.set(find(i), [...(byRoot.get(find(i)) ?? []), x]));
+	const groups: AreaGroup[] = [...byRoot.values()].map((members) => {
+		const stops = members.flatMap((m) => m.stops);
+		return {
+			id: `area-${members[0].c.id}`,
+			clusters: members.map((m) => m.c),
+			stops,
+			center: centroid(stops),
+			name: stops.length > 1 ? `${stops[0].name} +${stops.length - 1}` : stops[0].name
+		};
+	});
+	const near = (p: Stop | null) =>
+		p ? (groups.find((g) => haversineKm(p, g.center) < MERGE_KM)?.id ?? null) : null;
+	const startIn = near(start);
+	const endIn = near(end);
+	const outer: OuterPoint[] = [];
+	if (start && !startIn && end && !endIn && haversineKm(start, end) < MERGE_KM) outer.push({ role: 'both', place: start });
+	else {
+		if (start && !startIn) outer.push({ role: 'start', place: start });
+		if (end && !endIn) outer.push({ role: 'end', place: end });
+	}
+	return { groups, outer, startIn, endIn, applicable: groups.length + outer.length >= 2 };
+}
+
+/** A row of the by-area view: a group of clusters, or an outer start/end. */
+export interface AreaRowBase {
+	id: string;
+	group: AreaGroup | null;
+	outer: OuterPoint | null;
+	/** Where the reading is taken. */
+	place: { id: string; name: string; lat: number; lng: number };
+	/** "START" / "END" folded into an area row. */
+	includes: ('start' | 'end')[];
+}
+
+export function areaRows(plan: AreaPlan, start: Stop | null, end: Stop | null): AreaRowBase[] {
+	const rows: AreaRowBase[] = [];
+	const outerOf = (o: OuterPoint): AreaRowBase => ({ id: `outer-${o.role}`, group: null, outer: o, place: o.place, includes: [] });
+	const first = plan.outer.filter((o) => o.role !== 'end').map(outerOf);
+	const last = plan.outer.filter((o) => o.role === 'end').map(outerOf);
+	rows.push(...first);
+	for (const g of plan.groups) {
+		const includes: AreaRowBase['includes'] = [];
+		if (plan.startIn === g.id && start) includes.push('start');
+		if (plan.endIn === g.id && end) includes.push('end');
+		rows.push({ id: g.id, group: g, outer: null, place: { id: g.id, name: g.name, lat: g.center.lat, lng: g.center.lng }, includes });
+	}
+	rows.push(...last);
+	return rows;
+}
+
+export interface AreaDiff {
+	kind: 'temp' | 'rain';
+	/** "10° COOLER", "+55% RAIN" */
+	text: string;
+}
+
+export const DIFF_TEMP_C = 5;
+export const DIFF_RAIN_POINTS = 30;
+
+/** How a reading stands out from the others (only when the gap is big enough to matter). */
+export function areaDiffs(own: WeatherResponse, others: WeatherResponse[], unit: TempUnit): AreaDiff[] {
+	if (others.length === 0) return [];
+	const out: AreaDiff[] = [];
+	const meanOf = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+	const dT = own.temp_max_c - meanOf(others.map((o) => o.temp_max_c));
+	if (Math.abs(dT) >= DIFF_TEMP_C) {
+		const shown = Math.abs(toUnit(own.temp_max_c, unit) - toUnit(own.temp_max_c - dT, unit));
+		out.push({ kind: 'temp', text: `${shown}° ${dT < 0 ? 'COOLER' : 'WARMER'}` });
+	}
+	const rains = others.flatMap((o) => (o.rain_chance === null ? [] : [o.rain_chance]));
+	if (own.rain_chance !== null && rains.length > 0) {
+		const dR = Math.round(own.rain_chance - meanOf(rains));
+		if (Math.abs(dR) >= DIFF_RAIN_POINTS) out.push({ kind: 'rain', text: `${dR > 0 ? '+' : '−'}${Math.abs(dR)}% RAIN` });
+	}
+	return out;
+}

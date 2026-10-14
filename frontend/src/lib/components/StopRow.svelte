@@ -33,7 +33,7 @@
 	}
 </script>
 
-<div class="stop {selected ? 'sel' : ''}" data-id={stop.id} data-name={selected ? 'StopRow/Selected' : 'StopRow/Default'}>
+<div class="stop {selected ? 'sel' : ''} {!selected && itinerary.areaStopIds.has(stop.id) ? `areahl ${cluster.colorClass}` : ''}" data-id={stop.id} data-name={selected ? 'StopRow/Selected' : 'StopRow/Default'}>
 	<button class="grip" aria-label="Reorder {stop.name}. Use arrow keys or drag." onkeydown={onkeymove}>
 		<Icon name="grip" />
 	</button>

@@ -1,17 +1,11 @@
 <script lang="ts">
 	import { formatDayLong, formatDayShort } from '#lib/days.ts';
 	import type { DayWeather, ItineraryState } from '#lib/state/itinerary.svelte.ts';
-	import { Banner, Button, Icon, IconButton, Skeleton, WeatherIcon } from '#lib/ui/index.ts';
-	import {
-		ago,
-		forecastOpensOn,
-		formatTemp,
-		PERIOD_LABEL,
-		rainAdvice,
-		sourceLabel,
-		type WeatherReading,
-		type WeatherRole
-	} from '#lib/weather.ts';
+	import { Banner, Button, Icon, SegmentedControl, Skeleton, WeatherIcon, type SegmentOption } from '#lib/ui/index.ts';
+	import WeatherAreaList from './WeatherAreaList.svelte';
+	import WeatherDetail from './WeatherDetail.svelte';
+	import WeatherSource from './WeatherSource.svelte';
+	import { forecastOpensOn, formatTemp, rainAdvice, type WeatherReading, type WeatherRole } from '#lib/weather.ts';
 
 	/** The selected day's weather at its start and end. `compact` (mobile) starts collapsed to one line. */
 	let {
@@ -33,7 +27,11 @@
 	const toggle = (role: WeatherRole) => (toggled[role] = !isOpen(role));
 
 	const roleCaption = (r: WeatherReading) => (r.role === 'start' ? 'START' : r.role === 'end' ? 'END' : '');
-	const wetShare = (share: number | null) => (share === null ? '—' : `${Math.round(share * 10)} in 10`);
+	const VIEWS: SegmentOption<'ends' | 'areas'>[] = [
+		{ value: 'ends', label: 'Start & end' },
+		{ value: 'areas', label: 'By area' }
+	];
+	const areaAdvice = $derived(itinerary.areaRows.map((r) => (r.reading ? rainAdvice(r.reading) : null)).find((a) => a !== null) ?? null);
 </script>
 
 {#if wx && wx.kind !== 'hidden'}
@@ -46,7 +44,7 @@
 			</span>
 			<Button variant="secondary" size="sm" icon="calendar" onclick={ontripdates}>Add dates</Button>
 		</section>
-	{:else if wx.kind === 'loading'}
+	{:else if wx.kind === 'loading' && !itinerary.showAreas}
 		<section class="wxcard {compact ? 'compact' : ''}" aria-busy="true" aria-label="Loading weather" data-name="Weather/Loading">
 			<div class="wxtop">
 				<span class="wxbig"><Skeleton width="28px" height="28px" circle /></span>
@@ -65,7 +63,7 @@
 				</div>
 			{/if}
 		</section>
-	{:else if wx.kind === 'error'}
+	{:else if wx.kind === 'error' && !itinerary.showAreas}
 		<div class="wxnote" data-name="Weather/Error">
 			<Banner variant="err">
 				Weather isn’t available right now. Your route and distances still work.
@@ -74,8 +72,17 @@
 				{/snippet}
 			</Banner>
 		</div>
+	{:else if itinerary.showAreas}
+		<section class="wxcard {compact ? 'compact' : ''}" aria-label="Weather by area for {dateLong}" data-name="WeatherCard">
+			{@render head('WEATHER BY AREA')}
+			<WeatherAreaList {itinerary} {compact} />
+		</section>
+		{#if areaAdvice}
+			<div class="wxnote" data-name="Weather/Advice"><Banner variant="warn"><b>{areaAdvice.place}:</b> {areaAdvice.text} {areaAdvice.hint}</Banner></div>
+		{/if}
 	{:else}
 		<section class="wxcard {compact ? 'compact' : ''}" aria-label="Weather for {dateLong}" data-name="WeatherCard">
+			{#if itinerary.areasApplicable}{@render head('WEATHER')}{/if}
 			{#each wx.readings as r (r.role)}
 				{@const w = r.wx}
 				{@const open = isOpen(r.role)}
@@ -95,43 +102,8 @@
 						<span class="wxtemp num">{w.source === 'typical' ? '~' : ''}{formatTemp(w.temp_max_c, unit)}<small> / {formatTemp(w.temp_min_c, unit)}</small></span>
 						<Icon name={open ? 'chevron-down' : 'chevron-right'} />
 					</button>
-					{#if open}
-						{#if w.source === 'typical'}
-							<div class="wxmetrics num" style="grid-template-columns: repeat(2, minmax(0, 1fr))">
-								<div class="wxm">RAINY DAYS<b><Icon name="drop" class="wx-rainy" />{wetShare(w.wet_day_share)}</b></div>
-								<div class="wxm">AVG. RAINFALL<b>{w.rain_mm} mm</b></div>
-							</div>
-						{:else}
-							<div class="wxmetrics num">
-								{#if w.rain_chance !== null}<div class="wxm">RAIN<b><Icon name="drop" class="wx-rainy" />{w.rain_chance}%</b></div>{/if}
-								<div class="wxm">{w.source === 'recorded' ? 'RAINFALL' : 'AMOUNT'}<b>{w.rain_mm} mm</b></div>
-								{#if w.wind_kmh !== null}<div class="wxm">WIND<b><Icon name="wind" class="wx-cloudy" />{Math.round(w.wind_kmh)} km/h</b></div>{/if}
-								{#if w.uv_index !== null}<div class="wxm">UV<b><Icon name="wx-sun" class="wx-sun" />{Math.round(w.uv_index)}</b></div>{/if}
-							</div>
-						{/if}
-						{#if w.periods.length > 0}
-							<div class="wxhours num" role="list" aria-label="Through the day">
-								{#each w.periods as p (p.name)}
-									{@const wet = (p.rain_chance ?? 0) >= 50}
-									<div class="wxh {wet ? 'wet' : ''}" role="listitem">
-										{PERIOD_LABEL[p.name]}
-										<Icon name={wet ? 'wx-rain' : 'wx-cloudy'} class={wet ? 'wx-rainy' : 'wx-cloudy'} />
-										<b>{formatTemp(p.temp_c, unit)}</b>
-										{#if p.rain_chance !== null}{p.rain_chance}%{/if}
-									</div>
-								{/each}
-							</div>
-						{/if}
-					{/if}
-					<div class="wxsrc">
-						<span class="wxchip {w.source === 'typical' ? 'typ' : w.source === 'recorded' ? 'rec' : ''}">
-							<Icon name={w.source === 'forecast' ? 'clock' : w.source === 'typical' ? 'refresh' : 'check'} />{sourceLabel(w.source)}
-						</span>
-						<span>
-							{#if w.source === 'forecast'}Updated {ago(w.fetched_at)}{:else if w.source === 'typical'}Average of the last {w.years} years{:else}Observed data{/if}
-							· <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a>
-						</span>
-					</div>
+					{#if open}<WeatherDetail {w} {unit} />{/if}
+					<WeatherSource {w} />
 				</div>
 			{/each}
 		</section>
@@ -147,3 +119,18 @@
 		{/if}
 	{/if}
 {/if}
+
+{#snippet head(title: string)}
+	<div class="wxhead">
+		<span class="tt">{title}</span>
+		{#if itinerary.areasApplicable}
+			<SegmentedControl
+				size="sm"
+				label="Weather view"
+				options={VIEWS}
+				value={itinerary.showAreas ? 'areas' : 'ends'}
+				onchange={(v) => itinerary.setWeatherView(v)}
+			/>
+		{/if}
+	</div>
+{/snippet}

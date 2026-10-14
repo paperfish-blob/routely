@@ -30,7 +30,19 @@ import type {
 	RouteResponse,
 	Stop
 } from '../types';
-import { isoDayDate, weatherPoints, type WeatherPoint, type WeatherReading } from '../weather';
+import {
+	areaDiffs,
+	areaRows,
+	isoDayDate,
+	planAreas,
+	weatherPoints,
+	type AreaDiff,
+	type AreaGroup,
+	type AreaPlan,
+	type AreaRowBase,
+	type WeatherPoint,
+	type WeatherReading
+} from '../weather';
 import { toasts } from './toasts.svelte';
 import { WeatherState } from './weather.svelte';
 
@@ -57,6 +69,15 @@ export interface Notice {
 	variant: 'ok' | 'info';
 	message: string;
 }
+
+/** One row of the weather-by-area view with its reading (or why it has none). */
+export interface AreaRow extends AreaRowBase {
+	status: 'ok' | 'loading' | 'error';
+	reading: WeatherReading | null;
+	diffs: AreaDiff[];
+}
+
+export type WeatherView = 'auto' | 'ends' | 'areas';
 
 /** What the weather card shows for a day. */
 export interface DayWeather {
@@ -424,6 +445,72 @@ export class ItineraryState {
 		this.tempUnit = unit;
 	}
 
+	/** Which weather view the person chose; auto = by area whenever the day has areas far enough apart. */
+	weatherView = $state<WeatherView>('auto');
+	/** The area row opened by clicking it (a selected stop opens its own area when none is). */
+	areaOpenId = $state<string | null>(null);
+
+	/** The active day's clusters grouped into areas (30 km rule), once clusters and dates exist. */
+	areaPlan = $derived.by<AreaPlan | null>(() => {
+		const day = this.activeDay;
+		if (!day || !this.startDate || this.clusterInfos.length === 0) return null;
+		const ends = this.endsOf(day);
+		return planAreas(this.clusterInfos, (id) => this.stopAny(id), ends.start, ends.end);
+	});
+	areasApplicable = $derived(this.areaPlan?.applicable ?? false);
+	showAreas = $derived(this.areasApplicable && this.weatherView !== 'ends');
+
+	setWeatherView(view: WeatherView): void {
+		this.weatherView = view;
+		this.areaOpenId = null;
+	}
+
+	/** Rows for the by-area view (empty unless it is showing). */
+	areaRows = $derived.by<AreaRow[]>(() => {
+		const day = this.activeDay;
+		const plan = this.areaPlan;
+		const date = day ? this.dateOf(day) : null;
+		if (!day || !plan || !date || !this.showAreas) return [];
+		const ends = this.endsOf(day);
+		const base = areaRows(plan, ends.start, ends.end);
+		const rows = base.map((r): AreaRow => {
+			const entry = this.weather.entry(r.place, date);
+			const role = r.outer ? (r.outer.role === 'both' ? 'day' : r.outer.role) : 'day';
+			const reading: WeatherReading | null = entry?.status === 'ok' ? { role, place: r.place as never, wx: entry.wx } : null;
+			return { ...r, reading, status: reading ? 'ok' : entry?.status === 'error' ? 'error' : 'loading', diffs: [] };
+		});
+		const all = rows.flatMap((r) => (r.reading ? [r.reading.wx] : []));
+		for (const r of rows) {
+			if (!r.reading) continue;
+			r.diffs = areaDiffs(r.reading.wx, all.filter((w) => w !== r.reading!.wx), this.tempUnit);
+		}
+		return rows;
+	});
+
+	/** The row that is open: the one clicked, else the area of the selected stop. */
+	openAreaId = $derived.by<string | null>(() => {
+		if (this.areaOpenId) return this.areaOpenId;
+		const id = this.selectedId;
+		if (!id) return null;
+		return this.areaPlan?.groups.find((g) => g.stops.some((s) => s.id === id))?.id ?? null;
+	});
+
+	/** Stops of the open area, to tint in the list and outline on the map. */
+	areaStopIds = $derived.by<Set<string>>(() => {
+		const g: AreaGroup | undefined = this.areaPlan?.groups.find((x) => x.id === this.openAreaId);
+		return new Set(g?.stops.map((s) => s.id) ?? []);
+	});
+
+	toggleArea(id: string): void {
+		this.areaOpenId = this.areaOpenId === id ? null : id;
+		this.selectedId = null;
+	}
+
+	/** The area row a cluster belongs to (for the temperature on its chip). */
+	areaOfCluster(clusterId: number): AreaRow | null {
+		return this.areaRows.find((r) => r.group?.clusters.some((c) => c.id === clusterId)) ?? null;
+	}
+
 	private syncWeather(): void {
 		const wants: { place: WeatherPoint['place']; date: string }[] = [];
 		for (const day of this.days) {
@@ -431,6 +518,15 @@ export class ItineraryState {
 			if (!date) continue;
 			for (const { place } of weatherPoints(day, this.endsOf(day))) {
 				wants.push({ place: { id: place.id, name: place.name, lat: place.lat, lng: place.lng }, date });
+			}
+		}
+		// By area adds the area centres (and any far-away start/end) for the day being looked at.
+		const active = this.activeDay;
+		const activeDate = active ? this.dateOf(active) : null;
+		if (active && activeDate && this.showAreas && this.areaPlan) {
+			const ends = this.endsOf(active);
+			for (const r of areaRows(this.areaPlan, ends.start, ends.end)) {
+				wants.push({ place: { id: r.place.id, name: r.place.name, lat: r.place.lat, lng: r.place.lng }, date: activeDate });
 			}
 		}
 		untrack(() => this.weather.want(wants));
@@ -944,6 +1040,7 @@ export class ItineraryState {
 			if (day && day.id !== this.activeId) this.setActive(day.id);
 		}
 		this.selectedId = id;
+		if (id) this.areaOpenId = null;
 	}
 
 	clear(): void {

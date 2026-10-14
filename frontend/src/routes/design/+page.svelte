@@ -314,6 +314,21 @@
 					<span class="wxchip rec"><Icon name="check" />RECORDED</span>
 					<button class="wxt wet day2" style="width: 120px"><span class="h"><span class="dtag">D2</span><WeatherIcon kind="storm" /></span><span class="t num">30°<small> / 24°</small></span><span class="r num"><Icon name="drop" class="wx-rainy" />75%</span></button>
 				</div>
+				<span class="cap">BY AREA: ROWS (SELECTED · WET · LOADING · UNAVAILABLE) AND DIFFERENCE CHIPS</span>
+				<section class="wxcard" style="margin: 0">
+					<div class="wxhead">
+						<span class="tt">WEATHER BY AREA</span>
+						<SegmentedControl size="sm" label="Weather view" options={[{ value: 'ends', label: 'Start & end' }, { value: 'areas', label: 'By area' }]} value="areas" onchange={() => {}} />
+					</div>
+					<div class="wxlist">
+						<button class="wxa"><span class="tags"><span class="base-ico" style="width: 26px; height: 26px"><Icon name="plane" /></span></span><span class="tx"><b>KLIA Airport</b><span>START</span></span><WeatherIcon kind="sun" /><span class="rt-r"><span class="t num">33°<small> / 24°</small></span><span class="rn num"><Icon name="drop" class="wx-rainy" />20%</span></span></button>
+						<button class="wxa cA"><span class="tags"><ClusterTag cluster={A} /></span><span class="tx"><b>KLCC +2</b><span>3 stops · also END</span></span><WeatherIcon kind="partly" /><span class="rt-r"><span class="t num">32°<small> / 24°</small></span><span class="rn num"><Icon name="drop" class="wx-rainy" />30%</span></span></button>
+						<button class="wxa cC sel wet"><span class="tags"><ClusterTag cluster={C} /></span><span class="tx"><b>Genting Skyworld +1</b><span>2 stops</span></span><WeatherIcon kind="storm" /><span class="rt-r"><span class="t num">22°<small> / 17°</small></span><span class="rn num"><Icon name="drop" class="wx-rainy" />85%</span></span></button>
+						<div class="wxdiffs"><span class="wxchip diff"><Icon name="arrow-down" />10° COOLER</span><span class="wxchip diff"><Icon name="drop" />+55% RAIN</span></div>
+						<div class="wxa" aria-busy="true"><span class="tags"><ClusterTag cluster={B} /></span><span class="tx" style="gap: var(--sp-6)"><Skeleton width="120px" height="13px" /><Skeleton width="80px" height="10px" /></span><Skeleton width="56px" height="22px" /></div>
+						<div class="wxa"><span class="tags"><ClusterTag cluster={D} /></span><span class="tx"><b>Malacca</b><span>Weather unavailable</span></span><Button variant="secondary" size="sm" icon="refresh">Retry</Button></div>
+					</div>
+				</section>
 				<span class="cap">STATES: NO DATES · LOADING · UNAVAILABLE</span>
 				<section class="wxcard prompt" style="margin: 0">
 					<span class="wxbig" style="width: 38px; height: 38px"><WeatherIcon kind="partly" /></span>
