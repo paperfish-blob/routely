@@ -10,6 +10,7 @@ from routely.services.geocoding import GeocodingService
 from routely.services.optimizer import OptimizerService
 from routely.services.proximity import ProximityService
 from routely.services.routing import RoutingService
+from routely.services.weather import WeatherService
 
 
 @dataclass
@@ -19,6 +20,7 @@ class Services:
     proximity: ProximityService
     routing: RoutingService
     optimizer: OptimizerService
+    weather: WeatherService
 
 
 def get_services(request: Request) -> Services:
@@ -39,3 +41,7 @@ def get_routing(request: Request) -> RoutingService:
 
 def get_optimizer(request: Request) -> OptimizerService:
     return get_services(request).optimizer
+
+
+def get_weather(request: Request) -> WeatherService:
+    return get_services(request).weather

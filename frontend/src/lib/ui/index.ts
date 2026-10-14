@@ -15,5 +15,6 @@ export { default as SegmentedControl } from './SegmentedControl.svelte';
 export type { SegmentOption } from './SegmentedControl.svelte';
 export { default as Skeleton } from './Skeleton.svelte';
 export { default as Toast } from './Toast.svelte';
+export { default as WeatherIcon } from './WeatherIcon.svelte';
 export { badgeClass } from './classes.ts';
 export { ICONS, type IconName } from './icons.ts';

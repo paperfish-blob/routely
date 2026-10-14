@@ -71,6 +71,8 @@ Environment variables, all prefixed `ROUTELY_`; see [`backend/.env.example`](bac
 | `OSRM_BASE_URL` | `https://router.project-osrm.org` | Driving routes |
 | `OSRM_WALKING_BASE_URL` | `https://routing.openstreetmap.de/routed-foot` | Walking routes (see note below) |
 | `OSRM_TIMEOUT_S` | `8.0` | Router timeout before falling back to straight lines |
+| `OPEN_METEO_FORECAST_URL` / `OPEN_METEO_ARCHIVE_URL` | `https://api.open-meteo.com/v1/forecast` / `https://archive-api.open-meteo.com/v1/archive` | Weather (no API key) |
+| `WEATHER_FORECAST_TTL_S` / `WEATHER_HISTORY_TTL_S` | `3600` / `86400` | In-memory weather cache lifetimes |
 | `CLUSTER_THRESHOLD_KM` | `5.0` | Default proximity-group threshold |
 | `CORS_ORIGINS` | `["http://localhost:5173","http://127.0.0.1:5173"]` | JSON list of allowed origins |
 
@@ -86,6 +88,7 @@ All endpoints are stateless. Stops are `{id, name, lat, lng}`; `lat` ∈ [-90, 9
 | `GET /geocode?q=` | `q` (1–200 chars), optional `near_lat` + `near_lng` (location hint) | up to 5 `{display_name, lat, lng}`; with a hint, matches within 150 km come first (closest first) |
 | `POST /distances` | `stops`, optional `cluster_threshold_km` | `matrix_km`, per-leg `legs`, `total_km`, `nearest` neighbour per stop, `clusters` (single-linkage; singletons included) |
 | `POST /route` | `stops`, `mode`: `driving` \| `walking` | GeoJSON `geometry`, `distance_km`, `duration_s`, `legs`, `fallback`, `fallback_reason` |
+| `GET /weather?lat=&lng=&date=` | coordinates and a `YYYY-MM-DD` date | `source` (`forecast` ≤ 15 days ahead, `typical` beyond, `recorded` for past days), `summary`, `icon`, `temp_max_c`/`temp_min_c`, `rain_chance`, `rain_mm`, `wind_kmh`, `uv_index`, morning/afternoon/evening/night `periods`; `502 weather_unavailable` when Open-Meteo fails |
 | `POST /optimize` | `stops`, optional `start_id` and `end_id` (pin the first / last stop) | suggested `order` of ids, `original_total_km`, `new_total_km`, `km_saved` |
 
 ```bash
@@ -100,6 +103,7 @@ Behaviour worth knowing:
 
 - **Fallback:** if OSRM is unreachable, errors, or finds no route, `/route` returns straight lines with `fallback: true` (and a `fallback_reason`). Durations in that case are rough estimates (50 km/h driving, 5 km/h walking). The UI flags this.
 - **Optimizer:** nearest-neighbour construction followed by 2-opt, over the open path. `start_id` / `end_id` pin the first / last stop (a hotel loop pins both, with the same place under two ids). Without `start_id` every stop is tried as the start. It never returns an order worse than the current one, unless a pin forces a different position.
+- **Weather** comes from [Open-Meteo](https://open-meteo.com/) (free, no key; attribution is shown in the app). A forecast covers today to 15 days ahead; further out the backend averages the same date over the last 5 years and labels it `typical`; past days are `recorded` (no chance of rain, only what fell). Coordinates are rounded to ~1 km before leaving the server and results are cached in memory. The app reads the weather at each day's **start and end** separately (one reading when they are within 30 km), and only once the trip has dates. Temperatures show in °C, or °F from Trip options.
 - **Distances** are great-circle (haversine) kilometres; road distances come from `/route`.
 
 ## Architecture notes
@@ -110,6 +114,7 @@ Backend (`backend/src/routely`): each capability is an abstract interface with o
 | --- | --- |
 | `GeocodingService` | `NominatimGeocoder` (User-Agent, 1 req/s `RateLimiter`, `GeocodeCache`) |
 | `GeocodeCache` | `InMemoryGeocodeCache` (TTL + LRU) |
+| `WeatherService` | `OpenMeteoWeatherService` (forecast, archive, typical average; in-memory TTL cache) |
 | `DistanceService` | `HaversineDistanceService` |
 | `RoutingService` | `OsrmRoutingService` with `HaversineRoutingService` fallback |
 | `ProximityService` | `SingleLinkageProximityService` |

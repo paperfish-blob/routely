@@ -43,7 +43,11 @@ export interface Itinerary {
 	startDate?: string;
 	/** Days have a fixed start and end (e.g. a hotel). Default true. */
 	useBase?: boolean;
+	/** Temperature unit for weather. Default Celsius. */
+	tempUnit?: TempUnit;
 }
+
+export type TempUnit = 'c' | 'f';
 
 export interface GeocodeCandidate {
 	display_name: string;
@@ -101,4 +105,33 @@ export interface OptimizeResponse {
 	original_total_km: number;
 	new_total_km: number;
 	km_saved: number;
+}
+
+export type WeatherSource = 'forecast' | 'typical' | 'recorded';
+export type WeatherIconKind = 'sun' | 'partly' | 'cloudy' | 'rain' | 'storm' | 'fog' | 'snow';
+
+export interface WeatherPeriod {
+	name: 'morning' | 'afternoon' | 'evening' | 'night';
+	temp_c: number;
+	rain_chance: number | null;
+}
+
+export interface WeatherResponse {
+	date: string;
+	lat: number;
+	lng: number;
+	source: WeatherSource;
+	summary: string;
+	icon: WeatherIconKind;
+	temp_max_c: number;
+	temp_min_c: number;
+	rain_chance: number | null;
+	rain_mm: number;
+	wind_kmh: number | null;
+	uv_index: number | null;
+	periods: WeatherPeriod[];
+	wet_day_share: number | null;
+	years: number | null;
+	fetched_at: string;
+	attribution: string;
 }

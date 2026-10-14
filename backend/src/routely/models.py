@@ -1,5 +1,7 @@
 """Request/response schemas shared across endpoints."""
 
+from datetime import date as Date
+from datetime import datetime
 from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, Field, model_validator
@@ -122,3 +124,36 @@ class OptimizeResponse(BaseModel):
     original_total_km: float
     new_total_km: float
     km_saved: float
+
+
+WeatherSource = Literal["forecast", "typical", "recorded"]
+WeatherIcon = Literal["sun", "partly", "cloudy", "rain", "storm", "fog", "snow"]
+
+
+class WeatherPeriod(BaseModel):
+    name: Literal["morning", "afternoon", "evening", "night"]
+    temp_c: float
+    # None when the source has no hourly probability (recorded data).
+    rain_chance: int | None = None
+
+
+class WeatherResponse(BaseModel):
+    date: Date
+    lat: float
+    lng: float
+    source: WeatherSource
+    summary: str
+    icon: WeatherIcon
+    temp_max_c: float
+    temp_min_c: float
+    # Percent; None for recorded and typical weather.
+    rain_chance: int | None = None
+    rain_mm: float
+    wind_kmh: float | None = None
+    uv_index: float | None = None
+    periods: list[WeatherPeriod] = []
+    # Typical weather only: share of past days (0-1) that were wet, and how many years it averages.
+    wet_day_share: float | None = None
+    years: int | None = None
+    fetched_at: datetime
+    attribution: str = "Weather by Open-Meteo.com"

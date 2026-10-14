@@ -154,4 +154,10 @@ describe('parseItinerary', () => {
 	it('defaults an unknown route mode', () => {
 		expect(parseItinerary(raw({ routeMode: 'teleport' }))?.routeMode).toBe('straight');
 	});
+
+	it('keeps a valid temperature unit and drops anything else', () => {
+		const base = { version: 3, days: [], routeMode: 'driving' };
+		expect(parseItinerary(JSON.stringify({ ...base, tempUnit: 'f' }))?.tempUnit).toBe('f');
+		expect(parseItinerary(JSON.stringify({ ...base, tempUnit: 'k' }))?.tempUnit).toBeUndefined();
+	});
 });

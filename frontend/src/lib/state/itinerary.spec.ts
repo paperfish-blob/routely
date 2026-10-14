@@ -348,3 +348,71 @@ describe('dates and notices', () => {
 		expect(s.activeId).toBe(s.days[0].id);
 	});
 });
+
+describe('weather', () => {
+	const wx = (over = {}) => ({
+		date: '2026-10-25',
+		lat: 3,
+		lng: 101,
+		source: 'forecast' as const,
+		summary: 'Rain',
+		icon: 'rain' as const,
+		temp_max_c: 30,
+		temp_min_c: 24,
+		rain_chance: 70,
+		rain_mm: 5,
+		wind_kmh: 10,
+		uv_index: 6,
+		periods: [],
+		wet_day_share: null,
+		years: null,
+		fetched_at: '2026-10-14T06:00:00Z',
+		attribution: 'Weather by Open-Meteo.com',
+		...over
+	});
+	const sync = (s: ItineraryState) => (s as unknown as { syncWeather(): void }).syncWeather();
+
+	it('has nothing for an empty day and asks for dates when the trip has none', () => {
+		const s = make([day('d1', []), day('d2', ['x'])]);
+		expect(s.dayWeather(s.days[0]).kind).toBe('hidden');
+		expect(s.dayWeather(s.days[1]).kind).toBe('nodates');
+	});
+
+	it('looks up each dated day at its start and end, then reports the readings', async () => {
+		vi.useFakeTimers();
+		const weather = vi.fn(async (_lat: number, _lng: number, date: string) => wx({ date }));
+		const s = new ItineraryState(store, { weather } as never);
+		const far = stop('far', 2.2, 102.2);
+		s.days = [day('d1', ['a'], at(stop('home', 3, 101)), { kind: 'place', place: far })];
+		s.activeId = 'd1';
+		s.setStartDate('2026-10-25');
+		expect(s.dayWeather(s.days[0]).kind).toBe('loading');
+		sync(s);
+		await vi.advanceTimersByTimeAsync(400);
+		const w = s.dayWeather(s.days[0]);
+		expect(w.kind).toBe('ok');
+		expect(w.readings.map((r) => r.role)).toEqual(['start', 'end']);
+		expect(weather).toHaveBeenCalledTimes(2);
+		expect(weather.mock.calls.map((c) => c[2])).toEqual(['2026-10-25', '2026-10-25']);
+		vi.useRealTimers();
+	});
+
+	it('reports an error when every lookup fails, without touching routing', async () => {
+		vi.useFakeTimers();
+		const s = new ItineraryState(store, { weather: vi.fn().mockRejectedValue(new Error('down')) } as never);
+		s.days = [day('d1', ['a'])];
+		s.activeId = 'd1';
+		s.setStartDate('2026-10-25');
+		sync(s);
+		await vi.advanceTimersByTimeAsync(400);
+		expect(s.dayWeather(s.days[0]).kind).toBe('error');
+		vi.useRealTimers();
+	});
+
+	it('remembers the temperature unit', () => {
+		const s = make();
+		expect(s.tempUnit).toBe('c');
+		s.setTempUnit('f');
+		expect(s.tempUnit).toBe('f');
+	});
+});

@@ -2,6 +2,7 @@
 	import { dayCaption, dayClass } from '#lib/days.ts';
 	import type { ItineraryState } from '#lib/state/itinerary.svelte.ts';
 	import { Icon } from '#lib/ui/index.ts';
+	import DayGlance from './DayGlance.svelte';
 
 	let { itinerary, onadd }: { itinerary: ItineraryState; onadd: () => void } = $props();
 </script>
@@ -19,7 +20,7 @@
 			data-drop-day={day.id}
 			onclick={() => itinerary.setActive(day.id)}
 		>
-			<span class="dtag">D{i + 1}</span>{dayCaption(itinerary.startDate, i, day.stops.length).replace(/^(\w{3}) (\d+) \w{3}$/, '$1 $2')}
+			<span class="dtag">D{i + 1}</span>{dayCaption(itinerary.startDate, i, day.stops.length).replace(/^(\w{3}) (\d+) \w{3}$/, '$1 $2')}{#if itinerary.startDate}<DayGlance {itinerary} {day} short />{/if}
 		</button>
 	{/each}
 	<button class="dchip add" aria-label="Add a day" onclick={onadd}><Icon name="plus" size="sm" /></button>

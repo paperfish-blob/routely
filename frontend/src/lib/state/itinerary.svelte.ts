@@ -23,13 +23,16 @@ import type {
 	EndPoint,
 	ResolvedEnds,
 	StartPoint,
+	TempUnit,
 	NearestNeighbour,
 	OptimizeResponse,
 	RouteMode,
 	RouteResponse,
 	Stop
 } from '../types';
+import { isoDayDate, weatherPoints, type WeatherPoint, type WeatherReading } from '../weather';
 import { toasts } from './toasts.svelte';
+import { WeatherState } from './weather.svelte';
 
 type Api = typeof defaultApi;
 
@@ -53,6 +56,15 @@ const isAbort = (err: unknown) => err instanceof DOMException && err.name === 'A
 export interface Notice {
 	variant: 'ok' | 'info';
 	message: string;
+}
+
+/** What the weather card shows for a day. */
+export interface DayWeather {
+	/** hidden: nothing to look up; nodates: the trip has no dates; loading / ok / error: the lookups' outcome. */
+	kind: 'hidden' | 'nodates' | 'loading' | 'ok' | 'error';
+	date: string | null;
+	points: WeatherPoint[];
+	readings: WeatherReading[];
 }
 
 export interface Leg {
@@ -119,6 +131,7 @@ export class ItineraryState {
 	/** Where new stops go when it differs from the active day (the "Adding to" chip). */
 	addToId = $state<string | null>(null);
 	routeMode = $state<RouteMode>('driving');
+	tempUnit = $state<TempUnit>('c');
 	clusterThresholdKm = $state<number>(DEFAULT_CLUSTER_KM);
 	selectedId = $state<string | null>(null);
 	loaded = $state(false);
@@ -149,10 +162,14 @@ export class ItineraryState {
 
 	readonly maxStops = MAX_STOPS;
 
+	readonly weather: WeatherState;
+
 	constructor(
 		private readonly store: ItineraryStore,
 		private readonly api: Api = defaultApi
-	) {}
+	) {
+		this.weather = new WeatherState((lat, lng, date, signal) => this.api.weather(lat, lng, date, signal));
+	}
 
 	// ── days & the active day ───────────────────────────────────────────
 
@@ -374,6 +391,51 @@ export class ItineraryState {
 		return { km, seconds, approx, ready };
 	});
 
+	// ── weather ─────────────────────────────────────────────────────────
+
+	/** ISO date of a day, or null when the trip has no dates. */
+	dateOf(day: Day): string | null {
+		return isoDayDate(this.startDate, this.dayIndex(day.id));
+	}
+
+	/** Weather at the day's start and end (one reading when they are close). */
+	dayWeather(day: Day): DayWeather {
+		const points = weatherPoints(day, this.endsOf(day));
+		const date = this.dateOf(day);
+		if (points.length === 0) return { kind: 'hidden', date, points, readings: [] };
+		if (!date) return { kind: 'nodates', date, points, readings: [] };
+		const readings: WeatherReading[] = [];
+		let pending = false;
+		for (const point of points) {
+			const entry = this.weather.entry(point.place, date);
+			if (entry?.status === 'ok') readings.push({ ...point, wx: entry.wx });
+			else if (!entry || entry.status === 'loading') pending = true;
+		}
+		// A start or end that failed does not hide the other one's weather.
+		const kind = pending ? 'loading' : readings.length > 0 ? 'ok' : 'error';
+		return { kind, date, points, readings };
+	}
+
+	retryWeather(): void {
+		this.weather.retry();
+	}
+
+	setTempUnit(unit: TempUnit): void {
+		this.tempUnit = unit;
+	}
+
+	private syncWeather(): void {
+		const wants: { place: WeatherPoint['place']; date: string }[] = [];
+		for (const day of this.days) {
+			const date = this.dateOf(day);
+			if (!date) continue;
+			for (const { place } of weatherPoints(day, this.endsOf(day))) {
+				wants.push({ place: { id: place.id, name: place.name, lat: place.lat, lng: place.lng }, date });
+			}
+		}
+		untrack(() => this.weather.want(wants));
+	}
+
 	// ── routing health ──────────────────────────────────────────────────
 
 	private degradedDays = $derived(
@@ -435,6 +497,7 @@ export class ItineraryState {
 				this.name = saved.name ?? '';
 				this.startDate = saved.startDate ?? null;
 				this.useBase = saved.useBase ?? true;
+				this.tempUnit = saved.tempUnit ?? 'c';
 				this.clusterThresholdKm = saved.clusterThresholdKm ?? DEFAULT_CLUSTER_KM;
 			}
 			const first = this.days.find((d) => d.stops.length > 0) ?? this.days[0];
@@ -444,9 +507,11 @@ export class ItineraryState {
 		const dispose = $effect.root(() => {
 			$effect(() => this.persist());
 			$effect(() => this.recomputeAll());
+			$effect(() => this.syncWeather());
 		});
 		return () => {
 			dispose();
+			this.weather.dispose();
 			for (const { timer, controller } of this.pending.values()) {
 				clearTimeout(timer);
 				controller.abort();
@@ -457,7 +522,7 @@ export class ItineraryState {
 
 	private persist(): void {
 		const days = $state.snapshot(this.days);
-		const { routeMode, name, clusterThresholdKm, startDate, useBase } = this;
+		const { routeMode, name, clusterThresholdKm, startDate, useBase, tempUnit } = this;
 		if (!this.loaded) return; // don't overwrite saved data before it is read
 		const empty =
 			days.length === 1 &&
@@ -475,6 +540,7 @@ export class ItineraryState {
 				name,
 				clusterThresholdKm,
 				useBase,
+				tempUnit,
 				...(startDate ? { startDate } : {})
 			});
 	}

@@ -9,8 +9,8 @@
 	import StartEndCard from './StartEndCard.svelte';
 	import StopRow from './StopRow.svelte';
 
-	/** `compact` (mobile) hides the start/end rows; the route row above the list stands in for them. */
-	let { itinerary, empty, compact = false }: { itinerary: ItineraryState; empty?: Snippet; compact?: boolean } = $props();
+	/** `top` renders above the first row and scrolls with the list (the day's weather). `compact` (mobile) hides the start/end rows; the route row above the list stands in for them. */
+	let { itinerary, empty, top, compact = false }: { itinerary: ItineraryState; empty?: Snippet; top?: Snippet; compact?: boolean } = $props();
 
 	let listEl = $state<HTMLDivElement>();
 	const day = $derived(itinerary.activeDay);
@@ -77,6 +77,7 @@
 			onDropDay: (old, dayId) => itinerary.moveStop(ids[old], dayId)
 		}}
 	>
+		{@render top?.()}
 		{#if withEnds}
 			{#if editing}
 				<StartEndCard {itinerary} dayId={day.id} focus={itinerary.endsEditor?.focus} onclose={() => itinerary.closeEndsEditor()} />

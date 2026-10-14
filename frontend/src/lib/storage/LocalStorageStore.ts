@@ -82,6 +82,7 @@ export function parseItinerary(raw: string | null): Itinerary | null {
 		}
 		if (isIsoDate(data.startDate)) itinerary.startDate = data.startDate;
 		if (typeof data.useBase === 'boolean') itinerary.useBase = data.useBase;
+		if (data.tempUnit === 'c' || data.tempUnit === 'f') itinerary.tempUnit = data.tempUnit;
 		return itinerary;
 	} catch {
 		return null;

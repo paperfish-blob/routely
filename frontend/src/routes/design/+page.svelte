@@ -16,6 +16,7 @@
 		SegmentedControl,
 		Skeleton,
 		Toast,
+		WeatherIcon,
 		Menu,
 		MenuHeading,
 		MenuItem,
@@ -269,6 +270,60 @@
 					<div class="srow"><span class="badge sm day2">1</span><span class="nm">Putrajaya Lake</span><span class="km num">63.4 km</span></div>
 				</div>
 				<div class="xfer" style="margin: 0"><Pill dashed icon="car">Overnight · 57.9 km · 58 min</Pill></div>
+			</section>
+
+			<section class="card">
+				<h2 class="cs">WEATHER</h2>
+				<span class="cap">ICONS (SUNNY · WET · GREY)</span>
+				<div class="row">
+					<WeatherIcon kind="sun" /><WeatherIcon kind="partly" /><WeatherIcon kind="cloudy" /><WeatherIcon kind="fog" /><WeatherIcon kind="rain" /><WeatherIcon kind="storm" /><WeatherIcon kind="snow" />
+				</div>
+				<span class="cap">DAY TABS WITH WEATHER · MAP PIN</span>
+				<div class="row" style="flex-wrap: nowrap; overflow: hidden">
+					<button class="dtab wxon day1 sel"><b><i></i>Day 1</b><span>Sat 24 Oct</span><span class="wx"><WeatherIcon kind="partly" />32° 24°</span></button>
+					<button class="dtab wxon day2"><b><i></i>Day 2</b><span>Sun 25 Oct</span><span class="wx"><WeatherIcon kind="storm" />30° 24°</span></button>
+					<span class="wxpin day2"><WeatherIcon kind="storm" />30°</span>
+				</div>
+				<span class="cap">FORECAST CARD (RAIN PERIODS TINTED)</span>
+				<section class="wxcard" style="margin: 0">
+					<div class="wxrow">
+						<div class="wxtop">
+							<span class="wxbig"><WeatherIcon kind="storm" /></span>
+							<span class="wxlabel"><b>Thunderstorms likely</b><span>Sun 25 Oct · Putrajaya</span></span>
+							<span class="wxtemp num">30°<small> / 24°</small></span>
+						</div>
+						<div class="wxmetrics num">
+							<div class="wxm">RAIN<b><Icon name="drop" class="wx-rainy" />75%</b></div>
+							<div class="wxm">AMOUNT<b>12 mm</b></div>
+							<div class="wxm">WIND<b><Icon name="wind" class="wx-cloudy" />14 km/h</b></div>
+							<div class="wxm">UV<b><Icon name="wx-sun" class="wx-sun" />7</b></div>
+						</div>
+						<div class="wxhours num">
+							<div class="wxh">Morning<WeatherIcon kind="cloudy" /><b>27°</b>10%</div>
+							<div class="wxh wet">Afternoon<WeatherIcon kind="rain" /><b>30°</b>80%</div>
+							<div class="wxh wet">Evening<WeatherIcon kind="rain" /><b>27°</b>60%</div>
+							<div class="wxh">Night<WeatherIcon kind="cloudy" /><b>25°</b>20%</div>
+						</div>
+						<div class="wxsrc"><span class="wxchip"><Icon name="clock" />FORECAST</span><span>Updated 8 min ago · Open-Meteo.com</span></div>
+					</div>
+				</section>
+				<span class="cap">SOURCE CHIPS · FORECAST STRIP TILE</span>
+				<div class="row">
+					<span class="wxchip"><Icon name="clock" />FORECAST</span>
+					<span class="wxchip typ"><Icon name="refresh" />TYPICAL</span>
+					<span class="wxchip rec"><Icon name="check" />RECORDED</span>
+					<button class="wxt wet day2" style="width: 120px"><span class="h"><span class="dtag">D2</span><WeatherIcon kind="storm" /></span><span class="t num">30°<small> / 24°</small></span><span class="r num"><Icon name="drop" class="wx-rainy" />75%</span></button>
+				</div>
+				<span class="cap">STATES: NO DATES · LOADING · UNAVAILABLE</span>
+				<section class="wxcard prompt" style="margin: 0">
+					<span class="wxbig" style="width: 38px; height: 38px"><WeatherIcon kind="partly" /></span>
+					<span class="wxlabel" style="gap: var(--sp-2)"><b>Weather for each day</b><span>Needs trip dates</span></span>
+					<Button variant="secondary" size="sm" icon="calendar">Add dates</Button>
+				</section>
+				<section class="wxcard" style="margin: 0" aria-busy="true">
+					<div class="wxtop"><span class="wxbig"><Skeleton width="28px" height="28px" circle /></span><div class="wxlabel" style="gap: var(--sp-6)"><Skeleton width="150px" height="14px" /><Skeleton width="110px" height="11px" /></div><Skeleton width="64px" height="24px" /></div>
+				</section>
+				<Banner variant="err">Weather isn’t available right now. Your route and distances still work.</Banner>
 			</section>
 
 			<section class="card">

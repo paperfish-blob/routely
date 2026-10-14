@@ -3,7 +3,9 @@
 	import { durationParts, formatKm, formatKmValue, moveItem } from '#lib/format.ts';
 	import { sortable } from '#lib/sortable.ts';
 	import type { ItineraryState } from '#lib/state/itinerary.svelte.ts';
-	import { Badge, Icon, IconButton, Pill } from '#lib/ui/index.ts';
+	import type { Day } from '#lib/types.ts';
+	import { Badge, Icon, IconButton, Pill, WeatherIcon } from '#lib/ui/index.ts';
+	import { formatTemp, glance } from '#lib/weather.ts';
 
 	let { itinerary, onadd, compact = false }: { itinerary: ItineraryState; onadd?: () => void; compact?: boolean } = $props();
 
@@ -13,6 +15,23 @@
 	const timeLabel = $derived(
 		itinerary.routeMode === 'walking' ? 'WALK TIME' : itinerary.routeMode === 'driving' ? 'DRIVE TIME' : 'TRAVEL TIME'
 	);
+
+	const unit = $derived(itinerary.tempUnit);
+	/** Days whose weather has arrived, for the forecast strip (capped so it stays a glance, not a table). */
+	const strip = $derived(
+		itinerary.days.length > 6
+			? []
+			: itinerary.days.flatMap((day, i) => {
+					const w = itinerary.dayWeather(day);
+					const g = w.kind === 'ok' ? glance(w.readings) : null;
+					return g ? [{ day, i, g }] : [];
+				})
+	);
+
+	function dayGlance(day: Day) {
+		const w = itinerary.dayWeather(day);
+		return w.kind === 'ok' ? glance(w.readings) : null;
+	}
 
 	const pillIcon = (approx: boolean) => (approx || itinerary.routeMode === 'straight' ? 'line' : itinerary.routeMode === 'walking' ? 'walk' : 'car');
 	const dur = (s: number | null) => {
@@ -41,6 +60,17 @@
 		<div class="v num">{itinerary.totalStopCount}</div>
 	</div>
 </div>
+{#if strip.length > 0}
+	<div class="wxstrip" role="group" aria-label="Forecast for each day" data-name="ForecastStrip">
+		{#each strip as { day, i, g } (day.id)}
+			<button class="wxt {g.wet ? 'wet' : ''} {dayClass(i)}" aria-label="Day {i + 1}: high {formatTemp(g.high, unit)}, low {formatTemp(g.low, unit)}{g.rain !== null ? `, rain ${g.rain} percent` : ''}. Open day" onclick={() => itinerary.setActive(day.id)}>
+				<span class="h"><span class="dtag">D{i + 1}</span><WeatherIcon kind={g.icon} /></span>
+				<span class="t num">{formatTemp(g.high, unit)}<small> / {formatTemp(g.low, unit)}</small></span>
+				{#if g.rain !== null}<span class="r num"><Icon name="drop" class="wx-rainy" />{g.rain}%</span>{/if}
+			</button>
+		{/each}
+	</div>
+{/if}
 {/if}
 
 <div class="side-scroll is-all" data-name="AllDays">
@@ -66,6 +96,10 @@
 						<b>{day.title || `Day ${i + 1}`}</b>
 						<span>{[dayCaption(itinerary.startDate, i, day.stops.length) + (itinerary.startDate ? ` · ${day.stops.length} ${day.stops.length === 1 ? 'stop' : 'stops'}` : ''), route].filter(Boolean).join(' · ')}</span>
 					</span>
+					{#if dayGlance(day)}
+						{@const g = dayGlance(day)!}
+						<span class="wx" title={g.rain !== null ? `Rain ${g.rain}%` : 'Typical weather'}><WeatherIcon kind={g.icon} />{formatTemp(g.high, unit)}</span>
+					{/if}
 					{#if day.stops.length > 0 && stats.ready && stats.km !== null}
 						<span class="st num">{stats.approx ? '≈ ' : ''}{formatKm(stats.km)}{#if stats.seconds}<br />{durationParts(stats.seconds).main} {durationParts(stats.seconds).unit}{/if}</span>
 					{/if}

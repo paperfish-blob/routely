@@ -20,6 +20,13 @@ class Settings(BaseSettings):
     osrm_walking_base_url: str = "https://routing.openstreetmap.de/routed-foot"
     osrm_timeout_s: float = 8.0
 
+    open_meteo_forecast_url: str = "https://api.open-meteo.com/v1/forecast"
+    open_meteo_archive_url: str = "https://archive-api.open-meteo.com/v1/archive"
+    weather_timeout_s: float = 8.0
+    weather_forecast_ttl_s: float = 3_600
+    weather_history_ttl_s: float = 86_400
+    weather_cache_max_entries: int = 500
+
     cluster_threshold_km: float = 5.0
     cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
 

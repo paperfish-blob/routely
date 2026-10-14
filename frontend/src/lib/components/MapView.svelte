@@ -45,6 +45,18 @@
 		text: string;
 		dashed?: boolean;
 	}
+	/** The weather at a place, drawn beside its marker. */
+	export interface WeatherPin {
+		id: string;
+		position: [number, number];
+		text: string;
+		/** Weather glyph and its tone class (wx-sun, wx-rainy, wx-cloudy). */
+		icon: keyof typeof ICONS;
+		tone: string;
+		/** Day colour class (day1…day3) for the pin's outline. */
+		colorClass: string;
+		label: string;
+	}
 	export interface PopupInfo {
 		title: string;
 		at: [number, number];
@@ -74,6 +86,7 @@
 		/** The suggested route (amber), drawn above the others while previewing. */
 		suggestedLine?: LngLat[] | null;
 		legChips?: LegChip[];
+		weatherPins?: WeatherPin[];
 		/** Hide the scale bar (the suggest legend takes its place). */
 		showScale?: boolean;
 		popup: PopupInfo | null;
@@ -92,6 +105,7 @@
 		hulls = [],
 		suggestedLine = null,
 		legChips = [],
+		weatherPins = [],
 		showScale = true,
 		popup,
 		fitPoints,
@@ -127,6 +141,7 @@
 	let locateMarker: maplibregl.Marker | undefined;
 	const markerEls = new Map<string, { marker: maplibregl.Marker; el: HTMLElement; badge: HTMLElement; tag: HTMLElement; label: HTMLElement }>();
 	const chipMarkers = new Map<string, maplibregl.Marker>();
+	const pinMarkers = new Map<string, maplibregl.Marker>();
 	let popupMarker: maplibregl.Marker | undefined;
 	let theme: MapTheme;
 
@@ -200,6 +215,8 @@
 			locateMarker?.remove();
 			for (const { marker } of markerEls.values()) marker.remove();
 			for (const marker of chipMarkers.values()) marker.remove();
+			for (const marker of pinMarkers.values()) marker.remove();
+			pinMarkers.clear();
 			markerEls.clear();
 			chipMarkers.clear();
 			map?.remove();
@@ -353,6 +370,32 @@
 			const el = marker.getElement().firstElementChild as HTMLElement;
 			el.textContent = chip.text;
 			el.classList.toggle('dashed', !!chip.dashed);
+		}
+	});
+
+	const escapeAttr = (v: string) => v.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+	// ── weather pins ────────────────────────────────────────────────────
+	$effect(() => {
+		if (!ready || !map) return;
+		const live = new Set(weatherPins.map((p) => p.id));
+		for (const [id, marker] of pinMarkers) {
+			if (!live.has(id)) {
+				marker.remove();
+				pinMarkers.delete(id);
+			}
+		}
+		for (const pin of weatherPins) {
+			let marker = pinMarkers.get(pin.id);
+			if (!marker) {
+				const el = document.createElement('div');
+				el.className = 'wxpin-wrap';
+				marker = new maplibregl.Marker({ element: el, anchor: 'center', offset: [0, 44] }).setLngLat(pin.position).addTo(map!);
+				pinMarkers.set(pin.id, marker);
+			}
+			marker.setLngLat(pin.position);
+			const el = marker.getElement();
+			el.innerHTML = `<span class="wxpin ${pin.colorClass}" role="img" aria-label="${escapeAttr(pin.label)}"><svg class="ico ${pin.tone}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[pin.icon]}</svg>${pin.text}</span>`;
 		}
 	});
 

@@ -3,7 +3,8 @@ import type {
 	GeocodeCandidate,
 	OptimizeResponse,
 	RouteResponse,
-	Stop
+	Stop,
+	WeatherResponse
 } from './types';
 
 const BASE_URL: string = (import.meta.env.VITE_API_URL ?? 'http://localhost:8001').replace(
@@ -98,5 +99,10 @@ export const api = {
 		signal?: AbortSignal
 	): Promise<OptimizeResponse> {
 		return post('/optimize', { stops: wire(stops), start_id: startId ?? null, end_id: endId ?? null }, signal);
+	},
+	/** Weather for one day (YYYY-MM-DD) at one place. Only coordinates and the date leave the browser. */
+	weather(lat: number, lng: number, date: string, signal?: AbortSignal): Promise<WeatherResponse> {
+		const params = new URLSearchParams({ lat: String(lat), lng: String(lng), date });
+		return request(`/weather?${params}`, { signal });
 	}
 };

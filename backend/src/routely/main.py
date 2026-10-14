@@ -5,7 +5,7 @@ import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routely.api import distances, geocode, health, optimize, route
+from routely.api import distances, geocode, health, optimize, route, weather
 from routely.config import Settings, get_settings
 from routely.deps import Services
 from routely.errors import register_error_handlers
@@ -15,6 +15,7 @@ from routely.services.geocoding import NominatimGeocoder, RateLimiter
 from routely.services.optimizer import NearestNeighbourTwoOptOptimizer
 from routely.services.proximity import SingleLinkageProximityService
 from routely.services.routing import OsrmRoutingService
+from routely.services.weather import OpenMeteoWeatherService
 
 
 def build_services(
@@ -40,6 +41,15 @@ def build_services(
             client,
             {"driving": settings.osrm_base_url, "walking": settings.osrm_walking_base_url},
             settings.osrm_timeout_s,
+        ),
+        weather=OpenMeteoWeatherService(
+            client,
+            settings.open_meteo_forecast_url,
+            settings.open_meteo_archive_url,
+            timeout_s=settings.weather_timeout_s,
+            forecast_ttl_s=settings.weather_forecast_ttl_s,
+            history_ttl_s=settings.weather_history_ttl_s,
+            max_entries=settings.weather_cache_max_entries,
         ),
     )
 
@@ -70,6 +80,7 @@ def create_app(
     app.include_router(distances.router)
     app.include_router(route.router)
     app.include_router(optimize.router)
+    app.include_router(weather.router)
     return app
 
 

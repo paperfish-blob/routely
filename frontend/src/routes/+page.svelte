@@ -20,6 +20,7 @@
 		type MapHull,
 		type MapLine,
 		type MapMarker,
+		type WeatherPin,
 		type PopupInfo
 	} from '#lib/components/MapView.svelte';
 	import SearchBox, { type AddTarget } from '#lib/components/SearchBox.svelte';
@@ -29,6 +30,7 @@
 	import ToastHost from '#lib/components/ToastHost.svelte';
 	import TripDatesDialog from '#lib/components/TripDatesDialog.svelte';
 	import TripOptions from '#lib/components/TripOptions.svelte';
+	import WeatherCard from '#lib/components/WeatherCard.svelte';
 	import { dayCaption, dayClass, dayDate, formatDayLong, formatTripRange, placeIcon, waypointsOf } from '#lib/days.ts';
 	import { durationParts, formatKm, formatKmValue, orderBy, placeSubtitle, stopFromCandidate } from '#lib/format.ts';
 	import { midpoint, nearestOnLine, type LngLat } from '#lib/map/geo.ts';
@@ -36,6 +38,7 @@
 	import { toasts } from '#lib/state/toasts.svelte.ts';
 	import { createStore } from '#lib/storage/index.ts';
 	import type { Day, GeocodeCandidate, RouteMode, Stop } from '#lib/types.ts';
+	import { formatTemp, iconName, tone } from '#lib/weather.ts';
 	import { Banner, Button, Dialog, Icon, IconButton, SegmentedControl, type SegmentOption } from '#lib/ui/index.ts';
 
 	const EXAMPLE_PLACES = ['Kuala Lumpur', 'Malacca', 'Penang'];
@@ -176,6 +179,27 @@
 		return out;
 	});
 
+	/** Weather at each day's start and end (the active day, or every day in the all-days view). */
+	const weatherPins = $derived.by<WeatherPin[]>(() => {
+		const out: WeatherPin[] = [];
+		itinerary.days.forEach((day, di) => {
+			if (!itinerary.isAll && day.id !== itinerary.activeId) return;
+			for (const r of itinerary.dayWeather(day).readings) {
+				const where = r.role === 'day' ? 'day' : r.role;
+				out.push({
+					id: `${day.id}:${r.role}`,
+					position: coord(r.place),
+					text: formatTemp(r.wx.temp_max_c, itinerary.tempUnit),
+					icon: iconName(r.wx.icon),
+					tone: `wx-${tone(r.wx.icon)}`,
+					colorClass: dayClass(di),
+					label: `Day ${di + 1} ${where === 'day' ? '' : `${where} `}weather at ${r.place.name}: ${r.wx.summary}, ${formatTemp(r.wx.temp_max_c, itinerary.tempUnit)}`
+				});
+			}
+		});
+		return out;
+	});
+
 	const popup = $derived.by<PopupInfo | null>(() => {
 		const stop = itinerary.selected;
 		if (!stop) return null;
@@ -289,6 +313,13 @@
 
 <svelte:window bind:innerWidth bind:innerHeight onkeydown={onWindowKey} />
 
+{#snippet weatherDesktop()}
+	<WeatherCard {itinerary} ontripdates={() => (datesOpen = true)} />
+{/snippet}
+{#snippet weatherMobile()}
+	<WeatherCard {itinerary} compact ontripdates={() => (datesOpen = true)} />
+{/snippet}
+
 {#snippet emptyDay()}
 	{#if itinerary.multiDay}
 		<EmptyState title="Plan Day {dayNumber}" text={emptyDayText}>
@@ -344,7 +375,7 @@
 				<AllDaysView {itinerary} onadd={() => (addDayOpen = true)} />
 			{:else}
 				{#if itinerary.multiDay}<DayHeader {itinerary} ontripdates={() => (datesOpen = true)} />{/if}
-				<StopList {itinerary} empty={emptyDay} />
+				<StopList {itinerary} empty={emptyDay} top={weatherDesktop} />
 				{#if itinerary.loaded && itinerary.stops.length === 1 && !itinerary.hasBase}
 					<p class="help info hint"><Icon name="info" size="sm" />Add one more stop to see distances and routes.</p>
 				{/if}
@@ -362,6 +393,7 @@
 		{hulls}
 		{suggestedLine}
 		{legChips}
+		{weatherPins}
 		showScale={!previewing}
 		{popup}
 		fitPoints={framing.pts}
@@ -447,7 +479,7 @@
 				{:else}
 					{#if itinerary.multiDay}<DayHeader {itinerary} ontripdates={() => (datesOpen = true)} />{/if}
 					{#if itinerary.useBase}<RouteEndsRow {itinerary} />{/if}
-					<StopList {itinerary} empty={emptyDay} compact />
+					<StopList {itinerary} empty={emptyDay} top={weatherMobile} compact />
 				{/if}
 			{/if}
 		</BottomSheet>

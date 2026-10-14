@@ -71,6 +71,7 @@ Numbers (distances, durations, counts) always use `.num` (tabular figures). Dist
 | EndpointRow (a day's START / END, with its menu) | `components/EndpointRow.svelte` |
 | StartEndCard (editor: where a day starts and ends) · RouteEndsRow (mobile) | `components/StartEndCard.svelte`, `components/RouteEndsRow.svelte` |
 | AddDayDialog · TripDatesDialog · TripOptions | `components/AddDayDialog.svelte`, `TripDatesDialog.svelte`, `TripOptions.svelte` |
+| WeatherCard (a day's weather at its start and end) · WeatherIcon · DayGlance (tab/chip temperatures) | `components/WeatherCard.svelte`, `ui/WeatherIcon.svelte`, `components/DayGlance.svelte` |
 | "Adding to Day N" chip | `components/SearchBox.svelte` (`target` prop) |
 
 ## Building new UI
@@ -99,6 +100,19 @@ A trip is a list of days (`Itinerary.days`). The UI always shows **one day at a 
 - **Dates are optional.** One trip start date; each day's date is derived from its position. Without dates, tabs show the stop count.
 - **Every destructive day/stop action is undoable** (toast with Undo): delete day, clear stops, remove/move/copy a stop.
 - **Optimising is per day** and pins the start first and the end last.
+
+## Weather
+
+Weather appears once the trip has dates (Open-Meteo, via the backend's `GET /weather`; only coordinates and a date are sent). Rules to keep when extending it:
+
+- **Start and end are read separately.** A day shows one reading when its start and end are within 30 km (or it has one stop), otherwise a **START** and an **END** reading, each collapsible. Without a fixed start/end, the first and last stop stand in.
+- **Every reading says where it comes from:** `FORECAST` (today to 15 days ahead, with an hourly strip and a rain advisory banner), `TYPICAL` (further ahead: an average of the same date in recent years, with a "not a forecast" notice) or `RECORDED` (past days: no rain *chance*, just what fell). Never show a typical value as if it were a forecast.
+- **Weather is a bonus.** It never blocks routing; when it fails the day shows an error banner with Retry, and the tabs show `—`.
+- **States:** no dates (a slim dashed prompt row with "Add dates"), loading (skeleton in the card's shape), ready, unavailable.
+- **Rain is never colour-only:** wet periods are tinted *and* carry a drop icon and a percentage.
+- **Units:** temperatures are °C by default, °F in Trip options (stored with the trip). Wind is km/h and rain mm.
+- **Attribution:** "Open-Meteo.com" (a link) stays visible in every card.
+- Icons are `wx-*` in `ui/icons.ts`, always rendered with `WeatherIcon` so the colour (sunny / wet / grey) follows the meaning.
 
 ## Behavioural conventions (from the design)
 
