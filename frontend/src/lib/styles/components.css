@@ -413,3 +413,26 @@ button.wxa:hover{background:var(--surface-2)}
 .wxac .t small{font-size:var(--fs-caption);font-weight:var(--fw-semibold);color:var(--ink-2)}
 .wxac .n{font-size:var(--fs-micro-2);font-weight:var(--fw-bold);color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wxac.wet .n{color:var(--cA)}
+
+/* resizable sidebar */
+.rzh{position:absolute;top:0;bottom:0;right:-8px;width:16px;cursor:col-resize;z-index:var(--z-dropdown);display:grid;place-items:center;border-radius:var(--r-md);touch-action:none}
+.rzh::before{content:"";position:absolute;top:0;bottom:0;left:7px;width:2px;border-radius:1px;background:transparent}
+.rzh .gp{position:relative;width:6px;height:44px;border-radius:var(--r-xs);background:var(--grab);opacity:0;box-shadow:0 0 0 2px var(--surface)}
+.rzh:hover::before{background:var(--primary);opacity:.35}
+.rzh:hover .gp,.rzh:focus-visible .gp,.rzh.drag .gp{opacity:1}
+.rzh:focus-visible{outline:3px solid var(--focus);outline-offset:-1px}
+.rzh.drag::before{background:var(--primary);opacity:1;left:6.5px;width:3px}
+.rzh.drag .gp{background:var(--primary)}
+.rzt{position:fixed;z-index:var(--z-toast);background:var(--primary);color:var(--on-primary);font-size:var(--fs-small);font-weight:var(--fw-bold);padding:5px 11px;border-radius:var(--r-lg);white-space:nowrap;box-shadow:var(--shadow);display:flex;gap:var(--sp-6);align-items:center;pointer-events:none;font-variant-numeric:tabular-nums}
+.rzt .ico{width:14px;height:14px}
+.rzr{position:fixed;left:0;top:0;height:22px;z-index:var(--z-toast);pointer-events:none}
+.rzr i{position:absolute;top:0;width:1px;height:22px;background:var(--primary);opacity:.5}
+.rzr b{position:absolute;top:4px;transform:translateX(-50%);font-size:var(--fs-nano);font-weight:var(--fw-extrabold);color:var(--primary);background:var(--surface);padding:1px 5px;border-radius:5px;border:1px solid var(--line);white-space:nowrap}
+.rzr b.low{top:28px}
+.rzr em{position:absolute;top:0;height:22px;background:var(--primary-soft);opacity:.7}
+body.rz-dragging{cursor:col-resize;user-select:none}
+body.rz-dragging *{cursor:col-resize !important}
+.side.rail{align-items:center;gap:var(--sp-12);padding:var(--sp-14) 0}
+.rail-days{display:flex;flex-direction:column;gap:var(--sp-8);flex:1;overflow-y:auto;padding:var(--sp-4) 0}
+.rail-days .dtag{border:0}
+.rail-days .dtag.on{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--c)}

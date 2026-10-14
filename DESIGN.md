@@ -72,6 +72,7 @@ Numbers (distances, durations, counts) always use `.num` (tabular figures). Dist
 | StartEndCard (editor: where a day starts and ends) · RouteEndsRow (mobile) | `components/StartEndCard.svelte`, `components/RouteEndsRow.svelte` |
 | AddDayDialog · TripDatesDialog · TripOptions | `components/AddDayDialog.svelte`, `TripDatesDialog.svelte`, `TripOptions.svelte` |
 | WeatherCard (a day's weather at its start and end, or by area) · WeatherAreaList · WeatherDetail · WeatherSource · WeatherIcon · DayGlance (tab/chip temperatures) | `components/WeatherCard.svelte`, `WeatherAreaList.svelte`, `WeatherDetail.svelte`, `WeatherSource.svelte`, `ui/WeatherIcon.svelte`, `components/DayGlance.svelte` |
+| SidebarResizer (drag handle, live width, limits ruler) · SidebarRail (collapsed) | `components/SidebarResizer.svelte`, `components/SidebarRail.svelte`, `state/sidebar.svelte.ts` |
 | "Adding to Day N" chip | `components/SearchBox.svelte` (`target` prop) |
 
 ## Building new UI
@@ -100,6 +101,17 @@ A trip is a list of days (`Itinerary.days`). The UI always shows **one day at a 
 - **Dates are optional.** One trip start date; each day's date is derived from its position. Without dates, tabs show the stop count.
 - **Every destructive day/stop action is undoable** (toast with Undo): delete day, clear stops, remove/move/copy a stop.
 - **Optimising is per day** and pins the start first and the end last.
+
+## Resizable sidebar
+
+On desktop the sidebar is **320–640 px wide** (default 400, never more than half the window) and can be dragged by the handle on its right edge. Rules to keep:
+
+- **The handle is a real control:** `role="separator"` with the width announced. Arrow keys resize by 16 px (64 with Shift), Home/End jump to min/max, Enter or double-click resets to 400.
+- **Never size things in the sidebar with fixed pixel widths.** Content must reflow between 320 and 640 (chips wrap or stay on one line, tabs scroll); fixed-height rows keep their height.
+- **Layout reads `--w-sidebar`**, set on `.app` from `SidebarState`. Anything positioned next to the sidebar (map, toasts) uses that variable, never a literal 400.
+- **Dragging past the minimum** (released under 260 px) collapses it to a 56 px rail (logo, day tags, expand button); `[` toggles it. Expanding restores the previous width.
+- **The width is a per-browser view setting** (`routely:view` via `ViewPrefsStore`), not part of the trip. The map canvas follows via a `ResizeObserver`.
+- Below 768 px there is no sidebar to resize: the bottom sheet takes over.
 
 ## Weather
 

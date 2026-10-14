@@ -206,6 +206,13 @@
 			zoom: 1.5,
 			attributionControl: false
 		});
+		// The sidebar can be dragged wider or narrower: keep the canvas matched to its box.
+		let frame = 0;
+		const resizer = new ResizeObserver(() => {
+			cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(() => map?.resize());
+		});
+		resizer.observe(container);
 		map.on('click', () => onselect(null));
 		map.on('move', updateScale);
 		map.on('moveend', placeLabels);
@@ -215,6 +222,8 @@
 			ready = true;
 		});
 		return () => {
+			resizer.disconnect();
+			cancelAnimationFrame(frame);
 			popupMarker?.remove();
 			locateMarker?.remove();
 			for (const { marker } of markerEls.values()) marker.remove();

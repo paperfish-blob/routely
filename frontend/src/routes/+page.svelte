@@ -23,6 +23,8 @@
 		type WeatherPin,
 		type PopupInfo
 	} from '#lib/components/MapView.svelte';
+	import SidebarRail from '#lib/components/SidebarRail.svelte';
+	import SidebarResizer from '#lib/components/SidebarResizer.svelte';
 	import SearchBox, { type AddTarget } from '#lib/components/SearchBox.svelte';
 	import StopList from '#lib/components/StopList.svelte';
 	import SuggestOrderPanel from '#lib/components/SuggestOrderPanel.svelte';
@@ -35,8 +37,9 @@
 	import { durationParts, formatKm, formatKmValue, orderBy, placeSubtitle, stopFromCandidate } from '#lib/format.ts';
 	import { midpoint, nearestOnLine, type LngLat } from '#lib/map/geo.ts';
 	import { ItineraryState } from '#lib/state/itinerary.svelte.ts';
+	import { SidebarState } from '#lib/state/sidebar.svelte.ts';
 	import { toasts } from '#lib/state/toasts.svelte.ts';
-	import { createStore } from '#lib/storage/index.ts';
+	import { createStore, createViewPrefs } from '#lib/storage/index.ts';
 	import type { Day, GeocodeCandidate, RouteMode, Stop } from '#lib/types.ts';
 	import { formatTemp, iconName, tone } from '#lib/weather.ts';
 	import { Banner, Button, Dialog, Icon, IconButton, SegmentedControl, type SegmentOption } from '#lib/ui/index.ts';
@@ -46,7 +49,11 @@
 	const SHEET_PX = { collapsed: 112, half: 430 } as const;
 
 	const itinerary = new ItineraryState(createStore());
-	onMount(() => itinerary.init());
+	const sidebar = new SidebarState(createViewPrefs());
+	onMount(() => {
+		sidebar.load();
+		return itinerary.init();
+	});
 
 	let addDayOpen = $state(false);
 	let datesOpen = $state(false);
@@ -58,6 +65,9 @@
 	let mapView = $state<ReturnType<typeof MapView>>();
 
 	const isMobile = $derived(innerWidth <= MOBILE_MAX);
+	$effect(() => {
+		sidebar.windowWidth = innerWidth;
+	});
 	const sheetPx = $derived(
 		sheet === 'full'
 			? Math.round(innerHeight * 0.88)
@@ -324,6 +334,14 @@
 	});
 
 	function onWindowKey(e: KeyboardEvent) {
+		if (e.key === '[' && !isMobile && !e.metaKey && !e.ctrlKey && !e.altKey) {
+			const t = e.target as HTMLElement | null;
+			if (!t || !(t.matches('input, textarea, select') || t.isContentEditable)) {
+				sidebar.toggle();
+				e.preventDefault();
+			}
+			return;
+		}
 		if (e.key !== 'Escape') return;
 		if (itinerary.suggestOpen) itinerary.closeSuggest();
 		else itinerary.select(null);
@@ -363,9 +381,12 @@
 	{/if}
 {/snippet}
 
-<div class="app {isMobile ? 'is-mobile' : ''} {itinerary.isAll ? 'is-all-days' : ''}" style="--sheet-h: {isMobile ? sheetPx : 0}px">
-	{#if !isMobile}
+<div class="app {isMobile ? 'is-mobile' : ''} {itinerary.isAll ? 'is-all-days' : ''}" style="--sheet-h: {isMobile ? sheetPx : 0}px{isMobile ? '' : `; --w-sidebar: ${sidebar.effective}px`}">
+	{#if !isMobile && sidebar.collapsed && !sidebar.dragging}
+		<SidebarRail {itinerary} {sidebar} />
+	{:else if !isMobile}
 		<aside class="side" aria-label="Itinerary" data-name="Sidebar">
+			<SidebarResizer {sidebar} />
 			<div class="side-head" data-name="Sidebar/Header">
 				<div class="brand-row">
 					<Logo />
